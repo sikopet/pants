@@ -115,32 +115,6 @@ class PayloadTest(BaseTest):
       JarsField([jar2]).fingerprint(),
     )
 
-  def test_jars_field_configuration(self):
-    jar1 = (JarDependency('com', 'foo', '1.0.0')
-              .with_sources())
-    jar2 = (JarDependency('com', 'foo', '1.0.0')
-              .with_docs())
-
-    self.assertNotEqual(
-      JarsField([jar1]).fingerprint(),
-      JarsField([jar2]).fingerprint(),
-    )
-
-  def test_jars_field_artifact_configuration(self):
-    """Like artifacts, JarDependencies throw away order information about their configurations.
-
-    But only in the hash key, the internal representation is in the order inserted.
-    """
-    jar1 = (JarDependency('com', 'foo', '1.0.0')
-              .with_sources())
-    jar2 = (JarDependency('com', 'foo', '1.0.0')
-              .with_docs())
-
-    self.assertNotEqual(
-      JarsField([jar1]).fingerprint(),
-      JarsField([jar2]).fingerprint(),
-    )
-
   def test_jars_field_apidocs(self):
     """apidocs are not properly rolled into the cache key right now.  Is this intentional?"""
 

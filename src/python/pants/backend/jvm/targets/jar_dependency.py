@@ -9,8 +9,8 @@ from collections import defaultdict
 
 from twitter.common.collections import OrderedSet
 
-from pants.base.build_manual import manual
 from pants.backend.jvm.targets.exclude import Exclude
+from pants.base.build_manual import manual
 
 
 class Artifact(object):
@@ -105,12 +105,6 @@ class JarDependency(object):
     self.withDocs = self.with_docs
 
   @property
-  def configurations(self):
-    confs = OrderedSet(self._configurations)
-    confs.update(artifact.conf for artifact in self.artifacts if artifact.conf)
-    return list(confs)
-
-  @property
   def classifier(self):
     """Returns the maven classifier for this jar dependency.
 
@@ -143,17 +137,15 @@ class JarDependency(object):
 
   @manual.builddict()
   def with_sources(self):
-    """This requests the artifact have its source jar fetched.
+    """This historically requested the artifact have its source jar fetched.
     (This implies there *is* a source jar to fetch.) Used in contexts
     that can use source jars (as of 2013, just eclipse and idea goals)."""
-    self._configurations += ('sources',)
     return self
 
   def with_docs(self):
-    """This requests the artifact have its javadoc jar fetched.
+    """This historically requested the artifact have its javadoc jar fetched.
     (This implies there *is* a javadoc jar to fetch.) Used in contexts
     that can use source jars (as of 2014, just eclipse and idea goals)."""
-    self._configurations += ('javadoc',)
     return self
 
   @manual.builddict()
