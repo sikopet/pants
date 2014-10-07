@@ -70,7 +70,6 @@ python_binary(
   entry_point = 'pants.bin.pants_exe:main',
   # TODO(John Sirois): Nuke this - we don't publish pexes so we need not build cross-platform pexes.
   platforms=[
-    'current',
     'linux-x86_64',
     'macosx-10.4-x86_64',
   ],
