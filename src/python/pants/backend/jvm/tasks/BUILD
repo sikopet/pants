@@ -45,7 +45,8 @@ python_library(
     ':scaladoc_gen',
     ':scalastyle',
     ':specs_run',
-  ],
+    ':unpack_jar_source_set',
+    ],
 )
 
 python_library(
@@ -495,3 +496,12 @@ python_library(
   ],
 )
 
+python_library(
+  name = 'unpack_jar_source_set',
+  sources = ['unpack_jar_source_set.py'],
+  dependencies = [
+    ':common',
+    '3rdparty/python/twitter/commons:twitter.common.dirutil',
+    'src/python/pants/backend/jvm/targets:jvm',
+    ]
+)

@@ -8,12 +8,14 @@ from __future__ import (nested_scopes, generators, division, absolute_import, wi
 import os
 import unittest2 as unittest
 
+from pants.backend.jvm.targets.jar_source_set import JarSourceSet
 from pants.base.build_file_address_mapper import BuildFileAddressMapper
 from pants.base.build_environment import get_buildroot
 from pants.base.build_file_parser import BuildFileParser
 from pants.base.build_graph import BuildGraph
 from pants.base.config import Config
 from pants.base.dev_backend_loader import load_build_configuration_from_source
+
 
 
 class Utf8HeaderTest(unittest.TestCase):
@@ -36,10 +38,9 @@ class Utf8HeaderTest(unittest.TestCase):
       build_graph.inject_address_closure(address)
 
     def has_hand_coded_python_files(tgt):
-      return (not tgt.is_synthetic) and tgt.is_original and tgt.has_sources('.py')
+      return tgt.is_python and (not tgt.is_synthetic) and tgt.is_original and tgt.has_sources('.py')
 
     nonconforming_files = []
-
     for target in build_graph.targets(has_hand_coded_python_files):
       for src in target.sources_relative_to_buildroot():
         with open(os.path.join(get_buildroot(), src), 'r') as python_file:
