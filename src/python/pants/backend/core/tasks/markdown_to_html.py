@@ -242,7 +242,7 @@ class MarkdownToHtml(Task):
         def process_page(key, outdir, url_builder, config, genmap, fragment=False):
           html_path = self.process(
             os.path.join(outdir, page_to_html_path(page)),
-            os.path.join(page.payload.sources.rel_path, page.source),
+            os.path.join(page.payload.sources.source_set.rel_path, page.source),
             self.fragment or fragment,
             url_builder,
             config,

@@ -103,6 +103,11 @@ class Payload(object):
     else:
       return hasher.hexdigest()
 
+  def __iter__(self):
+    if self._fields.keys():
+      for field in self._fields.keys():
+        yield field
+
   def __getattr__(self, attr):
     field = self._fields[attr]
     if field is not None:
