@@ -23,7 +23,7 @@ class JavaProtobufLibrary(ExportableJvmLibrary):
   def __init__(self, payload=None, buildflags=None, imports=None, **kwargs):
     """
     :param buildflags: Unused, and will be removed in a future release.
-    :param imports: List of addresses of `jar_library <#jar_library>`_
+    :param list imports: List of addresses of `jar_library <#jar_library>`_
       targets which contain .proto definitions.
     """
     payload = payload or Payload()
@@ -54,5 +54,7 @@ class JavaProtobufLibrary(ExportableJvmLibrary):
   def imports(self):
     """Returns the set of JarDependency instances to be included when compiling this target."""
     if self._imports is None:
-      self._imports = self.to_jar_dependencies(self.payload.raw_imports)
+      self._imports = JarLibrary.to_jar_dependencies(self.address,
+                                                     self.payload.raw_imports,
+                                                     self._build_graph)
     return self._imports
