@@ -14,7 +14,7 @@ import re
 import threading
 import xml
 
-from twitter.common.collections import OrderedDict, OrderedSet
+from twitter.common.collections import OrderedDict, OrderedSet, maybe_list
 
 from pants.base.build_environment import get_buildroot
 from pants.base.exceptions import TaskError
@@ -248,7 +248,7 @@ class IvyUtils(object):
         module=name,
         version='latest.integration',
         publications=None,
-        configurations=list(confs), # Mustache doesn't like sets.
+        configurations=maybe_list(confs), # Mustache doesn't like sets.
         dependencies=dependencies,
         excludes=excludes,
         overrides=overrides)
@@ -363,7 +363,7 @@ class IvyUtils(object):
     self.exec_ivy(mapdir,
                   [target],
                   ivyargs,
-                  confs=list(target.payload.configurations),
+                  confs=target.payload.get_field_value('configurations'),
                   ivy=Bootstrapper.default_ivy(executor),
                   workunit_factory=workunit_factory,
                   workunit_name='map-jars',
