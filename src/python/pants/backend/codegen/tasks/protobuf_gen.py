@@ -188,6 +188,10 @@ class ProtobufGen(CodeGen):
       if target in walked_targets:
         for source in target.sources_relative_to_buildroot():
           base = SourceRoot.find_by_path(source)
+          if not base:
+            base, _ = target.target_base, target.sources_relative_to_buildroot()
+            self.context.log.debug('Could not find source root for {source}, fell back to {base}.'
+                                   .format(source=source, base=base))
           if base not in sources_by_base:
             sources_by_base[base] = OrderedSet()
           sources_by_base[base].add(source)
