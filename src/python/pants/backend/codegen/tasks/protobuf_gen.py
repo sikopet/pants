@@ -30,6 +30,7 @@ from pants.base.target import Target
 from pants.binary_util import BinaryUtil
 from pants.fs.archive import ZIP
 from pants.util.dirutil import safe_mkdir
+from pants.util.strutil import ensure_text
 
 # Override with protobuf-gen -> supportdir
 _PROTOBUF_GEN_SUPPORTDIR_DEFAULT='bin/protobuf'
@@ -279,10 +280,11 @@ def calculate_java_genfiles(protobuf_parse):
     yield os.path.join(basepath, '{0}.java'.format(classname))
 
 def _same_contents(a, b):
+  """Perform a whitespace insenstive comparison of the two files"""
   with open(a, 'r') as f:
-    a_data = f.read().replace(' ', '')
+    a_data = ''.join(ensure_text(f.read()).split())
   with open(b, 'r') as f:
-    b_data = f.read().replace(' ', '')
+    b_data = ''.join(ensure_text(f.read()).split())
   return a_data == b_data
 
 def check_duplicate_conflicting_protos(sources_by_base, sources, log):
