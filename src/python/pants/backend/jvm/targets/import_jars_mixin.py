@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2014 Pants project contributors (see CONTRIBUTORS.md).
+# Copyright 2015 Pants project contributors (see CONTRIBUTORS.md).
 # Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
@@ -37,6 +37,21 @@ class ImportJarsMixin(object):
                                                             self.imported_jar_library_specs,
                                                             self._build_graph)
     return self._imported_jars
+
+  _imported_jar_libraries = None
+  @property
+  def imported_jar_libraries(self):
+    """:returns: target instances for specs referenced by imported_jar_library_specs.
+    :rtype: list of JarLibrary
+    """
+    if self._imported_jar_libraries is None:
+      self._imported_jar_libraries = []
+      if self.imported_jar_library_specs:
+        for spec in self.imported_jar_library_specs:
+          if spec:
+            self._imported_jar_libraries.append(
+              self._build_graph.get_target_from_spec(spec, relative_to=self.address.spec_path))
+    return self._imported_jar_libraries
 
   @property
   def traversable_specs(self):
