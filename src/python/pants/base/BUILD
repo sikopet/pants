@@ -130,6 +130,7 @@ python_library(
   dependencies = [
     ':build_graph',
     ':build_invalidator',
+    ':invalidation_report',
     ':target',
   ],
 )
@@ -195,6 +196,11 @@ python_library(
 python_library(
   name = 'hash_utils',
   sources = ['hash_utils.py'],
+)
+
+python_library(
+  name = 'invalidation_report',
+  sources = ['invalidation_report.py'],
 )
 
 python_library(

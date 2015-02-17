@@ -27,6 +27,7 @@ python_library(
     'src/python/pants/base:config',
     'src/python/pants/base:cmd_line_spec_parser',
     'src/python/pants/base:extension_loader',
+    'src/python/pants/base:invalidation_report',
     'src/python/pants/base:target',
     'src/python/pants/base:workunit',
     'src/python/pants/engine',
