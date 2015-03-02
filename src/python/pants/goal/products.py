@@ -19,6 +19,9 @@ class UnionProducts(object):
 
   def add_for_target(self, target, products):
     """Updates the products for a particular target, adding to existing entries."""
+    for product in products:
+      if product in self._products_by_target[target]:
+        raise ValueError('about to skip {}'.format(product))
     self._products_by_target[target].update(products)
 
   def add_for_targets(self, targets, products):
@@ -40,7 +43,7 @@ class UnionProducts(object):
       for dep in target.closure():
         if dep not in visited:
           products.update(self._products_by_target[dep])
-          visited.add(dep)
+          #visited.add(dep)
     return products
 
 
