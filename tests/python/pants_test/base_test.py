@@ -12,6 +12,8 @@ from contextlib import contextmanager
 from tempfile import mkdtemp
 from textwrap import dedent
 
+from twitter.common.collections import OrderedSet
+
 from pants.backend.core.targets.dependencies import Dependencies
 from pants.base.address import SyntheticAddress
 from pants.base.build_configuration import BuildConfiguration
@@ -27,7 +29,6 @@ from pants.base.exceptions import TaskError
 from pants.base.source_root import SourceRoot
 from pants.base.target import Target
 from pants.goal.goal import Goal
-from pants.goal.products import UnionProducts
 from pants.util.contextutil import pushd, temporary_dir, temporary_file
 from pants.util.dirutil import safe_mkdir, safe_open, safe_rmtree, touch
 from pants_test.base.context_utils import create_context
@@ -275,5 +276,5 @@ class BaseTest(unittest.TestCase):
     :param context: The execution context where the products data mapping lives.
     :param classpath: a list of classpath strings. If not specified, ['none'] will be used.
     """
-    compile_classpaths = context.products.get_data('compile_classpath', lambda: UnionProducts())
-    compile_classpaths.add_for_targets(context.targets(), [('default', entry) for entry in classpath or ['none']])
+    compile_classpath = context.products.get_data('compile_classpath', lambda: OrderedSet())
+    compile_classpath.update([('default', entry) for entry in classpath or ['none']])
