@@ -19,7 +19,6 @@ python_library(
     'src/python/pants/base:exceptions',
     'src/python/pants/base:target',
     'src/python/pants/goal:goal',
-    'src/python/pants/goal:products',
     'src/python/pants/util:contextutil',
     'src/python/pants/util:dirutil',
     'tests/python/pants_test/base:context_utils',
