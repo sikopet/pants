@@ -5,6 +5,7 @@
 from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
                         unicode_literals, with_statement)
 
+import logging
 import os
 
 from pants.backend.jvm.targets.import_jars_mixin import ImportJarsMixin
@@ -12,6 +13,9 @@ from pants.backend.jvm.tasks.ivy_task_mixin import IvyTaskMixin
 from pants.backend.jvm.tasks.nailgun_task import NailgunTask
 from pants.base.exceptions import TaskError
 from pants.util.dirutil import safe_walk
+
+
+logger = logging.getLogger(__name__)
 
 
 class IvyImports(IvyTaskMixin, NailgunTask):
@@ -54,8 +58,13 @@ class IvyImports(IvyTaskMixin, NailgunTask):
   def execute(self):
     # Gather all targets that are both capable of importing jars and actually
     # declare some imports.
-    targets = self.context.targets(lambda t: isinstance(t, ImportJarsMixin)
-                                             and t.imported_jar_libraries)
+    addresses = [t.address for t in self.context.targets()]
+    targets = []
+    self.context.build_graph.walk_transitive_dependency_graph(
+      addresses,
+      work=lambda t: targets.append(t),
+      predicate=lambda t: isinstance(t, ImportJarsMixin)
+                          and t.imported_jar_libraries)
     if not targets:
       return None
     imports_map = self.context.products.get('ivy_imports')
@@ -68,7 +77,7 @@ class IvyImports(IvyTaskMixin, NailgunTask):
       all_targets.update(target.imported_jar_libraries)
 
     imported_targets = []
-
+    logger.debug("Checking targets {}".format([t.address.spec for t in all_targets]))
     with self.invalidated(all_targets, invalidate_dependents=True) as invalidation_check:
       invalid_targets = []
       if invalidation_check.invalid_vts:
