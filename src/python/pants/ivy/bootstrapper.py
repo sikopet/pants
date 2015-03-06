@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, generators, nested_scopes, pr
 
 import hashlib
 import os
+import re
 import shutil
 
 from twitter.common import log
@@ -56,7 +57,9 @@ class Bootstrapper(object):
 
   @classmethod
   def instance(cls):
-    """Returns the default global ivy bootstrapper."""
+    """:returns: the default global ivy bootstrapper.
+    :rtype: Bootstrapper
+    """
     if cls._INSTANCE is None:
       cls._INSTANCE = cls()
     return cls._INSTANCE
@@ -94,15 +97,63 @@ class Bootstrapper(object):
                ivy_cache_dir=self.ivy_cache_dir,
                extra_jvm_options=self._extra_jvm_options())
 
+  def _http_proxy(self):
+    """Set ivy to use an http proxy.
+
+    Expects a string of the form http://<host>:<port>
+
+    TODO(Eric Ayers) Turn this into  a proper option
+    """
+    if os.getenv('HTTP_PROXY'):
+      return os.getenv('HTTP_PROXY')
+    if os.getenv('http_proxy'):
+      return os.getenv('http_proxy')
+    return self._config.get('ivy', 'http_proxy')
+
+  def _https_proxy(self):
+    """Set ivy to use an http proxy.
+
+    Expects a string of the form http://<host>:<port>
+
+    TODO(Eric Ayers) Turn this into  a proper option
+    """
+    if os.getenv('HTTPS_PROXY'):
+      return os.getenv('HTTPS_PROXY')
+    if os.getenv('https_proxy'):
+      return os.getenv('https_proxy')
+    return self._config.get('ivy', 'https_proxy')
+
+  def _parse_proxy_string(self, proxy_string):
+    match = re.match(r'^(http|https)://(?P<host>[^:]+):(?P<port>\d+)', proxy_string)
+    if match:
+      return match.group('host'), match.group('port')
+    return None, None
+
   def _extra_jvm_options(self):
+    extra_options = []
     if self._ivy_http_debug():
-      return [
+      extra_options.extend([
         "-Dorg.apache.commons.logging.Log=org.apache.commons.logging.impl.SimpleLog",
         "-Dorg.apache.commons.logging.simplelog.showdatetime=true",
         "-Dorg.apache.commons.logging.simplelog.log.httpclient.wire.header=debug",
         "-Dorg.apache.commons.logging.simplelog.log.org.apache.commons.httpclient=debug"
-      ]
-    return []
+      ])
+    http_proxy = self._http_proxy()
+    if http_proxy:
+      host, port = self._parse_proxy_string(http_proxy)
+      extra_options.extend([
+        "-Dhttp.proxyHost={}".format(host),
+        "-Dhttp.proxyPort={}".format(port),
+        ])
+
+    https_proxy = self._https_proxy()
+    if https_proxy:
+      host, port = self._parse_proxy_string(https_proxy)
+      extra_options.extend([
+        "-Dhttps.proxyHost={}".format(host),
+        "-Dhttps.proxyPort={}".format(port),
+        ])
+    return extra_options
 
   def _get_classpath(self, workunit_factory):
     """Returns the bootstrapped ivy classpath as a list of jar paths.
