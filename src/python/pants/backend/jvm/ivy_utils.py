@@ -59,6 +59,7 @@ class IvyModuleRef(object):
     # latest.integration is ivy magic meaning "just get the latest version"
     return IvyModuleRef(name=self.name, org=self.org, rev='latest.integration')
 
+
 class IvyInfo(object):
   def __init__(self):
     self.modules_by_ref = {}  # Map from ref to referenced module.
@@ -191,7 +192,7 @@ class IvyUtils(object):
     """
     diff_map = OrderedDict()
     for key, value in updated_symlink_path.iteritems():
-      if not key in existing_symlink_path:
+      if key not in existing_symlink_path:
         diff_map[key] = value
     return diff_map
 
@@ -302,6 +303,34 @@ class IvyUtils(object):
     return ret
 
   @classmethod
+  def _combine_jars(cls, jars):
+    """Combine jars with the same org/name/varsion so they can be represented together in ivy.xml.
+
+    If you have multiple instances of a dependency with org/name/version with different
+    classifiers, they need to be represented with one <dependency> tag and mulitple <artifact> tags.
+    :param jars: list of JarDependency definitions
+    :return: list of JarDependency definitions
+    """
+    jar_map = OrderedDict()
+    for jar in jars:
+      key = (jar.org, jar.name, jar.rev)
+      if key not in jar_map:
+        jar_map[key] = jar
+      else:
+        # Add an artifact
+        existing_jar = jar_map[key]
+        if not existing_jar.artifacts or not jar.artifacts:
+          # Add an artifact to represent the main artifact
+          existing_jar.append_artifact(jar.name,
+                                       type_=None,
+                                       ext=None,
+                                       url=None,
+                                       classifier=None)
+
+        existing_jar.artifacts += jar.artifacts
+    return jar_map.values()
+
+  @classmethod
   def generate_ivy(cls, targets, jars, excludes, ivyxml, confs):
     org, name = cls.identify(targets)
 
@@ -356,7 +385,11 @@ class IvyUtils(object):
     def collect_jars(target):
       targets_processed.add(target)
       if isinstance(target, JarLibrary):
+        # Combine together requests for jars with different classifiers from the same jar_library
+        target_jars = []
         for jar in target.jar_dependencies:
+          target_jars.append(jar)
+        for jar in cls._combine_jars(target_jars):
           if jar.rev:
             add_jar(jar)
 
