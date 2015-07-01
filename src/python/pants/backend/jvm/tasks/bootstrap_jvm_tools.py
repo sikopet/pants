@@ -130,7 +130,7 @@ class BootstrapJvmTools(IvyTaskMixin, JarTask):
 
   def _bootstrap_classpath(self, key, targets):
     workunit_name = 'bootstrap-{}'.format(key)
-    classpath, _ = self.ivy_resolve(targets, silent=True, workunit_name=workunit_name)
+    classpath, _, _ = self.ivy_resolve(targets, silent=True, workunit_name=workunit_name)
     return classpath
 
   def _bootstrap_tool_classpath(self, key, scope, tools):
