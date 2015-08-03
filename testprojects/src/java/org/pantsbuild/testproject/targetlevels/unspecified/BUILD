@@ -23,5 +23,4 @@ java_library(name='java6',
 java_library(name='java7',
   sources=globs('Seven.java'),
   platform='java7',
-  dependencies=[':lib'],
 )

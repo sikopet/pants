@@ -57,7 +57,8 @@ class JvmPlatformIntegrationMixin(object):
           class_to_version[os.path.relpath(path, tempdir)] = self.determine_version(path)
     return class_to_version
 
-  def _get_compiled_class_versions(self, strategy, spec):
+  def _get_compiled_class_versions(self, strategy, spec, more_args=None):
+    more_args = more_args or []
     jar_name = os.path.basename(spec)
     if ':' in jar_name:
       if ':' in jar_name[:-1]:
@@ -69,7 +70,8 @@ class JvmPlatformIntegrationMixin(object):
       with temporary_dir(root_dir=self.workdir_root()) as workdir:
         pants_run = self.run_pants_with_workdir(
           ['binary',] + self.get_pants_compile_args()
-          + ['--jvm-compile-strategy={}'.format(strategy), 'compile.checkstyle', '--skip', spec],
+          + ['--jvm-compile-strategy={}'.format(strategy), 'compile.checkstyle', '--skip', spec]
+          + more_args,
           workdir, config)
         self.assert_success(pants_run)
         return self._get_jar_class_versions('{}.jar'.format(jar_name))
@@ -110,7 +112,9 @@ class JvmPlatformIntegrationMixin(object):
       'org/pantsbuild/testproject/targetlevels/unspecified/Unspecified.class': '1.6',
       'org/pantsbuild/testproject/targetlevels/unspecified/Six.class': '1.6',
       'org/pantsbuild/testproject/targetlevels/unspecified/Seven.class': '1.7',
-    }, self._get_compiled_class_versions(strategy, target_spec))
+    }, self._get_compiled_class_versions(strategy, target_spec, more_args=[
+      '--jvm-platform-validate-check=warn'
+    ]))
 
   def _test_compile(self, target_level, class_name, source_contents, strategy, platform_args=None):
     with temporary_dir(root_dir=os.path.abspath('.')) as tmpdir:

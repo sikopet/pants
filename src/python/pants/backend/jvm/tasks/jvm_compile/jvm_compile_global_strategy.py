@@ -211,6 +211,11 @@ class JvmCompileGlobalStrategy(JvmCompileStrategy):
 
     :return: a list of tuples of the form (compile_settings, list of targets)
     """
+    return self._ordered_compile_settings_and_targets(self.context, relevant_targets)
+
+  @classmethod
+  def _ordered_compile_settings_and_targets(cls, context, relevant_targets):
+    # Exposed as a classmethod for easier unit testing.
     relevant_targets = set(relevant_targets)
 
     def get_platform(target):
@@ -242,8 +247,8 @@ class JvmCompileGlobalStrategy(JvmCompileStrategy):
           outgoing[dependency].add(target)
           incoming[target].add(dependency)
 
-    self.context.build_graph.walk_transitive_dependency_graph([t.address for t in relevant_targets],
-                                                               work=add_edges)
+    context.build_graph.walk_transitive_dependency_graph([t.address for t in relevant_targets],
+                                                          work=add_edges)
     # Topological sort.
     sorted_targets = []
     frontier = defaultdict(set)
@@ -289,14 +294,14 @@ class JvmCompileGlobalStrategy(JvmCompileStrategy):
     if set(sorted_targets) != relevant_targets:
       added = '\n  '.join(t.address.spec for t in (set(sorted_targets)-relevant_targets))
       removed = '\n  '.join(t.address.spec for t in (set(relevant_targets)-sorted_targets))
-      raise self.InternalTargetPartitioningError(
+      raise cls.InternalTargetPartitioningError(
         'Internal partitioning targets:\nSorted targets =/= original targets!\n'
         'Added:\n  {}\nRemoved:\n  {}'.format(added, removed)
       )
 
     unconsumed_edges = any(len(edges) > 0 for edges in outgoing.values())
     if unconsumed_edges:
-      raise self.InternalTargetPartitioningError(
+      raise cls.InternalTargetPartitioningError(
         'Cycle detected while ordering jvm_targets for compilation. This should have been detected '
         'when constructing the build_graph, so the presence of this error means there is probably '
         'a bug in this method.'
