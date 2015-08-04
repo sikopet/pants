@@ -69,6 +69,7 @@ python_tests(
   sources=['test_java_compile_settings_partitioning.py'],
   dependencies=[
     'src/python/pants/backend/jvm/tasks/jvm_compile:java',
+    'src/python/pants/backend/jvm/tasks:jvm_platform_analysis',
     'src/python/pants/fs',
     'src/python/pants/util:contextutil',
     'src/python/pants/util:dirutil',

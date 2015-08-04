@@ -9,8 +9,8 @@ from collections import defaultdict
 
 from pants.backend.jvm.subsystems.jvm_platform import JvmPlatformSettings
 from pants.backend.jvm.targets.java_library import JavaLibrary
-from pants.backend.jvm.tasks.jvm_compile.java.java_compile import JavaCompile
-from pants.backend.jvm.tasks.jvm_compile.jvm_compile import JvmCompile
+from pants.backend.jvm.tasks.jvm_compile.jvm_compile_global_strategy import JvmCompileGlobalStrategy
+from pants.backend.jvm.tasks.jvm_platform_analysis import JvmPlatformValidate
 from pants.base.revision import Revision
 from pants.util.memo import memoized_method
 from pants_test.tasks.task_test_base import TaskTestBase
@@ -20,7 +20,7 @@ class JavaCompileSettingsPartitioningTest(TaskTestBase):
 
   @classmethod
   def task_type(cls):
-    return JavaCompile
+    return JvmPlatformValidate
 
   def _java(self, name, platform=None, deps=None, sources=None):
     return self.make_target(spec='java:{}'.format(name),
@@ -49,10 +49,11 @@ class JavaCompileSettingsPartitioningTest(TaskTestBase):
     if ordered:
       # Only works in global! Isolated doesn't need this ordering.
       task = self._task_setup(targets, strategy='global', **options)
-      task.validate_platform_dependencies(targets)
-      return task._strategy.ordered_compile_settings_and_targets(targets)
+      task.validate_platform_dependencies()
+      return JvmCompileGlobalStrategy._ordered_compile_settings_and_targets(
+          self.context(target_roots=targets), targets)
     task = self._task_setup(targets, **options)
-    task.validate_platform_dependencies(targets)
+    task.validate_platform_dependencies()
     settings_and_targets = defaultdict(set)
     for target in targets:
       settings_and_targets[target.platform].add(target)
@@ -60,7 +61,7 @@ class JavaCompileSettingsPartitioningTest(TaskTestBase):
 
   def _partition(self, targets, **options):
     task = self._task_setup(targets, **options)
-    task.validate_platform_dependencies(targets)
+    task.validate_platform_dependencies()
     partition = defaultdict(set)
     for target in targets:
       partition[target.platform.target_level].add(target)
@@ -125,13 +126,13 @@ class JavaCompileSettingsPartitioningTest(TaskTestBase):
   def test_invalid_dependent_targets(self):
     java7 = self._java('seven', '1.7')
     java6 = self._java('six', '1.6', deps=[java7])
-    with self.assertRaises(JvmCompile.IllegalJavaTargetLevelDependency):
+    with self.assertRaises(JvmPlatformValidate.IllegalJavaTargetLevelDependency):
       self._partition([java6, java7], platforms=self._platforms('1.6', '1.7'))
 
   def test_invalid_dependent_targets_nonlexographic(self):
     java7 = self._java('seven', '1.7')
     java6 = self._java('six', '6', deps=[java7])
-    with self.assertRaises(JvmCompile.IllegalJavaTargetLevelDependency):
+    with self.assertRaises(JvmPlatformValidate.IllegalJavaTargetLevelDependency):
       self._partition([java6, java7], platforms=self._platforms('6', '1.7'))
 
   def test_unspecified_default(self):
