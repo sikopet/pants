@@ -5,6 +5,7 @@
 from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
                         unicode_literals, with_statement)
 
+import json
 import logging
 import os
 import pkgutil
@@ -333,6 +334,10 @@ class DistributionLocator(Subsystem):
     if os_name is None:
       os_name = os.uname()[0].lower()
     os_name = normalize_os_name(os_name)
+    print()
+    print('jdk_paths: {}'.format(json.dumps(jdk_paths)))
+    print('os_name: {}'.format(json.dumps(os_name)))
+    print()
     if os_name not in jdk_paths:
       logger.warning('--jvm-distributions-paths was specified, but has no entry for "{}".'
                      .format(os_name))
@@ -397,8 +402,10 @@ class DistributionLocator(Subsystem):
       for location in cls.environment_jvm_locations():
         yield location
 
+    print()
     for location in filter(None, search_path()):
       try:
+        print('Checking JVM Distribution at ({})'.format(location.home_path))
         dist = Distribution(home_path=location.home_path,
                             bin_path=location.bin_path,
                             minimum_version=minimum_version,
