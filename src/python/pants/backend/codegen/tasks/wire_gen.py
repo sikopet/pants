@@ -69,6 +69,23 @@ class WireGen(JvmToolTaskMixin, SimpleCodegenTask):
   def synthetic_target_extra_dependencies(self, target):
     return self.resolve_deps(self.get_options().javadeps)
 
+  def _calculate_proto_paths(self, target):
+    proto_paths = OrderedSet()
+    proto_paths.add(os.path.join(get_buildroot(), SourceRoot.find(target)))
+
+    def add_sources_for(dep):
+      if not dep.has_sources():
+        return
+      for source in dep.sources_relative_to_buildroot():
+        if source.endswith('.proto'):
+          root = SourceRoot.find_by_path(source)
+          if root:
+            proto_paths.add(os.path.join(get_buildroot(), root))
+
+    add_sources_for(target)
+    target.walk(add_sources_for)
+    return proto_paths
+
   def format_args_for_target(self, target):
     """Calculate the arguments to pass to the command line for a single target."""
     sources_by_base = self._calculate_sources([target])
@@ -127,10 +144,11 @@ class WireGen(JvmToolTaskMixin, SimpleCodegenTask):
     if target.payload.enum_options:
       args.append('--enum_options={0}'.format(','.join(target.payload.enum_options)))
 
-    args.append('--proto_path={0}'.format(os.path.join(get_buildroot(),
-                                                       SourceRoot.find(target))))
+    for path in self._calculate_proto_paths(target):
+      args.append('--proto_path={0}'.format(path))
 
     args.extend(relative_sources)
+    args.extend(target.payload.virtual_sources)
     return args
 
   def execute_codegen(self, targets):
