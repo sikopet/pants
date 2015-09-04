@@ -148,6 +148,7 @@ class WireGen(JvmToolTaskMixin, SimpleCodegenTask):
         args.append('--proto_path={0}'.format(path))
 
     args.extend(relative_sources)
+    args.extend(target.payload.virtual_sources)
     return args
 
   def execute_codegen(self, targets):
