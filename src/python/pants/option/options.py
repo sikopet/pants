@@ -10,6 +10,7 @@ import sys
 
 from pants.option.arg_splitter import GLOBAL_SCOPE, ArgSplitter
 from pants.option.global_options import GlobalOptionsRegistrar
+from pants.option.option_tracker import OptionTracker
 from pants.option.option_value_container import OptionValueContainer
 from pants.option.parser_hierarchy import ParserHierarchy, enclosing_scope
 from pants.option.scope import ScopeInfo
@@ -242,6 +243,8 @@ class Options(object):
     flags_in_scope = self._scope_to_flags.get(scope, [])
     self._parser_hierarchy.get_parser_by_scope(scope).parse_args(flags_in_scope, values)
     self._values_by_scope[scope] = values
+    for option in values:
+      OptionTracker.record_option(scope, option, values[option], values.get_rank(option))
     return values
 
   def registration_args_iter_for_scope(self, scope):

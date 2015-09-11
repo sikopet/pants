@@ -95,6 +95,9 @@ class Config(object):
 
     return ConfigParser.SafeConfigParser(all_seed_values)
 
+  def get_source_for_option(self, section, option):
+    raise NotImplementedError
+
   # TODO(John Sirois): s/type/type_/
   def getbool(self, section, option, default=None):
     """Equivalent to calling get with expected type bool."""
@@ -208,6 +211,11 @@ class SingleFileConfig(Config):
     else:
       return self.configparser.get(self.DEFAULT_SECTION, option)
 
+  def get_source_for_option(self, section, option):
+    if self.has_option(section, option):
+      return self.sources()[0]
+    return None
+
 
 class ChainedConfig(Config):
   """Config read from multiple sources."""
@@ -244,3 +252,9 @@ class ChainedConfig(Config):
     if not self.has_section(section):
       raise ConfigParser.NoSectionError(section)
     raise ConfigParser.NoOptionError(option, section)
+
+  def get_source_for_option(self, section, option):
+    for cfg in self.configs:
+      if cfg.has_option(section, option):
+        return cfg.get_source_for_option(section, option)
+    return None

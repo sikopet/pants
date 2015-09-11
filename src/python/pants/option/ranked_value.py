@@ -6,6 +6,7 @@ from __future__ import (absolute_import, division, generators, nested_scopes, pr
                         unicode_literals, with_statement)
 
 import copy
+import re
 
 
 class RankedValue(object):
@@ -57,6 +58,20 @@ class RankedValue(object):
   }
 
   @classmethod
+  def get_rank_name(cls, rank):
+    return cls._RANK_NAMES.get(rank, 'UNKNOWN')
+
+  @classmethod
+  def get_rank_value(cls, name):
+    if name in cls._RANK_NAMES.values():
+      return getattr(cls, name, None)
+    return None
+
+  @classmethod
+  def get_names(cls):
+    return cls._RANK_NAMES.values()
+
+  @classmethod
   def choose(cls, flag_val, env_val, config_val, hardcoded_val, default):
     """Return the highest-ranked non-None value, wrapped in a RankedValue instance."""
     if flag_val is not None:
@@ -90,8 +105,12 @@ class RankedValue(object):
     # the underlying list here.
     return copy.copy(self._value)
 
-  def __eq__(self):
-    return self._rank == self._rank and self._value == self._value
+  def __eq__(self, other):
+    return self._rank == other._rank and self._value == other._value
 
   def __repr__(self):
-    return '({}, {})'.format(self._RANK_NAMES.get(self._rank, 'UNKNOWN'), self._value)
+    return '({})'.format(', '.join(map(str, self)))
+
+  def __iter__(self):
+    yield self._RANK_NAMES.get(self._rank, 'UNKNOWN')
+    yield self._value

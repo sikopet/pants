@@ -6,6 +6,7 @@ from __future__ import (absolute_import, division, generators, nested_scopes, pr
                         unicode_literals, with_statement)
 
 import copy
+import os
 import re
 import warnings
 from argparse import ArgumentParser, _HelpAction
@@ -17,6 +18,7 @@ from pants.base.deprecated import check_deprecated_semver
 from pants.option.arg_splitter import GLOBAL_SCOPE
 from pants.option.custom_types import list_option
 from pants.option.errors import ParseError, RegistrationError
+from pants.option.option_tracker import OptionTracker
 from pants.option.option_util import is_boolean_flag
 from pants.option.ranked_value import RankedValue
 from pants.option.scope import ScopeInfo
@@ -375,6 +377,9 @@ class Parser(object):
           break
 
     config_val_str = self._config.get(config_section, dest, default=None)
+    config_source_file = self._config.get_source_for_option(config_section, dest)
+    if config_source_file is not None:
+      config_source_file = os.path.relpath(config_source_file)
 
     def expand(val_str):
       if is_fromfile and val_str and val_str.startswith('@') and not val_str.startswith('@@'):
@@ -406,7 +411,12 @@ class Parser(object):
     config_val = parse(config_val_str)
     env_val = parse(env_val_str)
     hardcoded_val = kwargs.get('default')
-    return RankedValue.choose(None, env_val, config_val, hardcoded_val, default)
+    choice = RankedValue.choose(None, env_val, config_val, hardcoded_val, default)
+    choice_source, choice_value = choice
+    OptionTracker.record_option(self._scope, dest, choice_value,
+                                RankedValue.get_rank_value(choice_source),
+                                details='in {}'.format(config_source_file))
+    return choice
 
   def _create_inverse_args(self, args):
     inverse_args = []
