@@ -22,6 +22,7 @@ from pants.option.global_options import GlobalOptionsRegistrar
 from pants.option.options import Options
 from pants.option.options_bootstrapper import OptionsBootstrapper
 from pants.option.parser import Parser
+from pants.option.ranked_value import RankedValue
 from pants.option.scope import ScopeInfo
 from pants.util.contextutil import temporary_file, temporary_file_path
 from pants.util.dirutil import safe_mkdtemp
@@ -751,3 +752,13 @@ class OptionsTest(unittest.TestCase):
   def test_fromfile_escape(self):
     options = self._parse(r'./pants fromfile --string=@@/does/not/exist')
     self.assertEqual('@/does/not/exist', options.for_scope('fromfile').string)
+
+  def test_ranked_value_equality(self):
+    none = RankedValue(RankedValue.NONE, None)
+    some = RankedValue(RankedValue.HARDCODED, 'some')
+    self.assertEquals('(NONE, None)', str(none))
+    self.assertEquals('(HARDCODED, some)', str(some))
+    self.assertNotEqual(some, none)
+    self.assertEqual(some, RankedValue(RankedValue.HARDCODED, 'some'))
+    self.assertNotEqual(some, RankedValue(RankedValue.HARDCODED, 'few'))
+    self.assertNotEqual(some, RankedValue(RankedValue.CONFIG, 'some'))
