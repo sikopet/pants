@@ -6,6 +6,7 @@ from __future__ import (absolute_import, division, generators, nested_scopes, pr
                         unicode_literals, with_statement)
 
 import logging
+import os
 
 from pants.backend.jvm.targets.exportable_jvm_library import ExportableJvmLibrary
 from pants.base.exceptions import TargetDefinitionException
@@ -20,7 +21,26 @@ logger = logging.getLogger(__name__)
 class JavaWireLibrary(ExportableJvmLibrary):
   """Generates a stub Java library from protobuf IDL files."""
 
+  @classmethod
+  def _real_and_virtual_sources(cls, address, sources):
+    def is_virtual(source):
+      try:
+        return not os.path.exists(os.path.join(address.build_file.parent_path, source))
+      except:
+        return False
+
+    real, virtual = [], []
+    for src in sources:
+      if is_virtual(src):
+        virtual.append(src)
+      else:
+        real.append(src)
+
+    return real, virtual
+
   def __init__(self,
+               address=None,
+               sources=None,
                payload=None,
                service_writer=None,
                service_writer_options=None,
@@ -45,7 +65,6 @@ class JavaWireLibrary(ExportableJvmLibrary):
     :param list enum_options: list of enums to pass to as the --enum-enum_options option, # optional
     :param boolean no_options: boolean that determines if --no_options flag is passed
     """
-
     if service_writer and service_factory:
       raise TargetDefinitionException(
         self,
@@ -56,7 +75,7 @@ class JavaWireLibrary(ExportableJvmLibrary):
     if not service_factory and service_factory_options:
       raise TargetDefinitionException(self,
                                       'service_factory_options requires setting service_factory')
-
+    sources, virtual_sources = self._real_and_virtual_sources(address, sources or ())
     payload = payload or Payload()
     payload.add_fields({
       'service_writer': PrimitiveField(service_writer or None),
@@ -71,7 +90,9 @@ class JavaWireLibrary(ExportableJvmLibrary):
       'registry_class': PrimitiveField(registry_class or None),
       'enum_options': PrimitiveField(enum_options or []),
       'no_options': PrimitiveField(no_options or False),
+      'virtual_sources': PrimitiveField(virtual_sources),
     })
 
-    super(JavaWireLibrary, self).__init__(payload=payload, **kwargs)
+    super(JavaWireLibrary, self).__init__(address=address, sources=sources, payload=payload,
+                                          **kwargs)
     self.add_labels('codegen')
