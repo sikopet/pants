@@ -95,7 +95,7 @@ class ProcessManager(object):
       process = self._as_process()
       if process:
         return process.cmdline()
-    except psutil.NoSuchProcess:
+    except (psutil.AccessDenied, psutil.NoSuchProcess):
       # On some platforms, accessing attributes of a zombie'd Process results in NoSuchProcess.
       pass
     return None
