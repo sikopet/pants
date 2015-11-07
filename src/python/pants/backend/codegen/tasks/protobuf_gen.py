@@ -47,7 +47,7 @@ class ProtobufGen(SimpleCodegenTask):
                   '--pants-bootstrapdir.  When changing this parameter you may also need to '
                   'update --javadeps.',
              default='2.4.1')
-    register('--plugins', advanced=True, fingerprint=True, action='append',
+    register('--protoc_plugins', advanced=True, fingerprint=True, action='append',
              help='Names of protobuf plugins to invoke.  Protoc will look for an executable '
                   'named protoc-gen-$NAME on PATH.',
              default=[])
@@ -76,7 +76,7 @@ class ProtobufGen(SimpleCodegenTask):
   def __init__(self, *args, **kwargs):
     """Generates Java files from .proto files using the Google protobuf compiler."""
     super(ProtobufGen, self).__init__(*args, **kwargs)
-    self.plugins = self.get_options().plugins
+    self.plugins = self.get_options().protoc_plugins
     self._extra_paths = self.get_options().extra_path
 
   @memoized_property
