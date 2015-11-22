@@ -374,3 +374,42 @@ class IvyUtilsGenerateIvyTest(IvyUtilsTestBase):
     ivy_info = IvyUtils._parse_xml_report(conf='default', path=path)
     self.assertIsNotNone(ivy_info)
     return ivy_info
+
+  def test_ivy_module_ref_cmp(self):
+    self.assertEquals(
+      IvyModuleRef('foo', 'bar', '1.2.3'), IvyModuleRef('foo', 'bar', '1.2.3'))
+    self.assertTrue(
+      IvyModuleRef('foo1', 'bar', '1.2.3') < IvyModuleRef('foo2', 'bar', '1.2.3'))
+    self.assertTrue(
+      IvyModuleRef('foo2', 'bar', '1.2.3') >IvyModuleRef('foo1', 'bar', '1.2.3'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar1', '1.2.3') < IvyModuleRef('foo', 'bar2', '1.2.3'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar2', '1.2.3') > IvyModuleRef('foo', 'bar1', '1.2.3'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.3') < IvyModuleRef('foo', 'bar', '1.2.4'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.4') > IvyModuleRef('foo', 'bar', '1.2.3'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.3', ext='jar') < IvyModuleRef('foo', 'bar', '1.2.3', ext='tgz'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.3', ext='tgz') > IvyModuleRef('foo', 'bar', '1.2.3', ext='jar'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.3', ext='jar', classifier='javadoc')
+      < IvyModuleRef('foo', 'bar', '1.2.3', ext='jar', classifier='sources'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.3', ext='tgz', classifier='sources')
+      > IvyModuleRef('foo', 'bar', '1.2.3', ext='jar', classifier='javadoc'))
+    # make sure rev is sorted last
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.4', classifier='javadoc')
+      < IvyModuleRef('foo', 'bar', '1.2.3', classifier='sources'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.3', classifier='sources')
+      > IvyModuleRef('foo', 'bar', '1.2.4', classifier='javadoc'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.4', ext='jar')
+      < IvyModuleRef('foo', 'bar', '1.2.3', ext='tgz'))
+    self.assertTrue(
+      IvyModuleRef('foo', 'bar', '1.2.3', ext='tgz')
+      > IvyModuleRef('foo', 'bar', '1.2.4', ext='jar'))

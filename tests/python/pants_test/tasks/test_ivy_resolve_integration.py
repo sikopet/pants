@@ -8,7 +8,7 @@ from __future__ import (absolute_import, division, generators, nested_scopes, pr
 import os
 import re
 
-from pants_test.pants_run_integration_test import PantsRunIntegrationTest
+from pants_test.pants_run_integration_test import PantsRunIntegrationTest, ensure_cached
 
 
 class IvyResolveIntegrationTest(PantsRunIntegrationTest):
@@ -78,3 +78,23 @@ class IvyResolveIntegrationTest(PantsRunIntegrationTest):
         '3rdparty:junit'
     ], config=pants_ini_config)
     self.assert_failure(pants_run)
+
+  # NB(zundel): This test is a bit brittle in that it expects to know what the caching behavior
+  # is like of other modules.  Expects 2 artifacts for ivy resolve, and 2 for compile.
+  # Before https://rbcommons.com/s/twitter/r/3168 we saw an extra compile artifact created.
+  @ensure_cached(expected_num_artifacts=4)
+  def test_ivy_resolve_stable(self, cache_args):
+    pants_run = self.run_pants([
+      'compile',
+      '--no-cache-compile-checkstyle-write',
+      'testprojects/src/java/org/pantsbuild/testproject/inccompile/libwithjettydep',
+      cache_args
+    ])
+    self.assert_success(pants_run)
+    pants_run = self.run_pants([
+      'compile',
+      '--no-cache-compile-checkstyle-write',
+      'testprojects/src/java/org/pantsbuild/testproject/inccompile/libwithjettyserver',
+      cache_args
+    ])
+    self.assert_success(pants_run)
