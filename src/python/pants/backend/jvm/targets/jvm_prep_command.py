@@ -34,10 +34,19 @@ class JvmPrepCommand(JvmTarget):
   triggered when running targets that depend on the `prep_command()` target or when the
   target is referenced from the command line.
   """
+  GOALS=frozenset()
+
+  @staticmethod
+  def add_goal(goal):
+    """Add a named goal to the list of valid goals for the 'goal' parameter.
+
+    Invoke this method in register.py before adding installing subclass of RunJvmPrepCommandBase.
+    """
+    JvmPrepCommand.GOALS = frozenset(list(JvmPrepCommand.GOALS) + [goal])
 
   @staticmethod
   def goals():
-    return ['compile', 'test', 'binary']
+    return JvmPrepCommand.GOALS
 
   def __init__(self, payload=None, mainclass=None, args=None, jvm_options=None, goal=None,
       **kwargs):

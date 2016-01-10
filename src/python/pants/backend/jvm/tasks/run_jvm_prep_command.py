@@ -24,6 +24,10 @@ class RunJvmPrepCommandBase(Task):
   goal = None
   classpath_product_only = False
 
+  def __init__(self, context, workdir):
+    super(RunJvmPrepCommandBase, self).__init__(context, workdir)
+    JvmPrepCommand.add_goal(self.goal)
+
   @classmethod
   def prepare(cls, options, round_manager):
     super(RunJvmPrepCommandBase, cls).prepare(options, round_manager)
@@ -84,7 +88,8 @@ class RunBinaryJvmPrepCommand(RunJvmPrepCommandBase):
 
   Register this tasks to run code at the beginning of the binary goal in register.py
 
-   task(name='binary-jvm-prep-command', action=RunBinaryJvmPrepCommand).install('binary', first=True)
+  JvmPrepCommand.add_goal('binary')
+  task(name='binary-jvm-prep-command', action=RunBinaryJvmPrepCommand).install('binary', first=True)
   """
   goal = 'binary'
 
@@ -94,6 +99,7 @@ class RunTestJvmPrepCommand(RunJvmPrepCommandBase):
 
   Register this task to run code at the beginning of the test goal in register.py
 
+  JvmPrepCommand.add_goal('test')
   task(name='pre-test-jvm-prep-command', action=RunTestJvmPrepCommand).install('test', first=True)
   """
   goal = 'test'
@@ -104,7 +110,8 @@ class RunCompileJvmPrepCommand(RunJvmPrepCommandBase):
 
   Register this tasks to run code at the beginning of the compile goal in register.py
 
-   task(name='compile-jvm-prep-command', action=RunCompileJvmPrepCommand).install('compile', first=True)
+  JvmPrepCommand.add_goal('compile')
+  task(name='compile-jvm-prep-command', action=RunCompileJvmPrepCommand).install('compile', first=True)
   """
   goal = 'compile'
   classpath_product_only = True
