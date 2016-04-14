@@ -8,7 +8,6 @@ from __future__ import (absolute_import, division, generators, nested_scopes, pr
 import ast
 import codecs
 import itertools
-import os
 import re
 import textwrap
 import tokenize
@@ -69,17 +68,7 @@ class PythonFile(object):
   """Checkstyle wrapper for Python source files."""
   SKIP_TOKENS = frozenset((tokenize.COMMENT, tokenize.NL, tokenize.DEDENT))
 
-  @classmethod
-  def _parse(cls, blob, filename):
-    blob_minus_coding_header = cls._remove_coding_header(blob)
-    try:
-      tree = ast.parse(blob_minus_coding_header, filename)
-    except SyntaxError as e:
-      raise CheckSyntaxError(e, blob, filename)
-    return tree
-
-  @classmethod
-  def _remove_coding_header(cls, blob):
+  def _remove_coding_header(self, blob):
     """
     There is a bug in ast.parse that cause it to throw a syntax error if
     you have a header similar to...
@@ -96,9 +85,9 @@ class PythonFile(object):
       lines[0] = '#remove coding'
     return '\n'.join(lines).encode('ascii', errors='replace')
 
-  def __init__(self, blob, tree, filename):
+  def __init__(self, blob, filename='<expr>'):
     self._blob = self._remove_coding_header(blob)
-    self.tree = tree
+    self.tree = ast.parse(self._blob, filename)
     self.lines = OffByOneList(self._blob.split('\n'))
     self.filename = filename
     self.logical_lines = dict((start, (start, stop, indent))
@@ -114,28 +103,13 @@ class PythonFile(object):
     return 'PythonFile({filename})'.format(filename=self.filename)
 
   @classmethod
-  def parse(cls, filename, root=None):
-    """Parses the file at filename and returns a PythonFile.
-
-    If root is specified, it will open the file with root prepended to the path. The idea is to
-    allow for errors to contain a friendlier file path than the full absolute path.
-    """
-    if root is not None:
-      if os.path.isabs(filename):
-        raise ValueError("filename must be a relative path if root is specified")
-      full_filename = os.path.join(root, filename)
-    else:
-      full_filename = filename
-
-    with codecs.open(full_filename, encoding='utf-8') as fp:
+  def parse(cls, filename):
+    with codecs.open(filename, encoding='utf-8') as fp:
       blob = fp.read()
-
-    tree = cls._parse(blob, filename)
-
-    return cls(blob, tree, filename)
+    return cls(blob, filename)
 
   @classmethod
-  def from_statement(cls, statement, filename='<expr>'):
+  def from_statement(cls, statement):
     """A helper to construct a PythonFile from a triple-quoted string, for testing.
     :param statement: Python file contents
     :return: Instance of PythonFile
@@ -143,10 +117,7 @@ class PythonFile(object):
     lines = textwrap.dedent(statement).split('\n')
     if lines and not lines[0]:  # Remove the initial empty line, which is an artifact of dedent.
       lines = lines[1:]
-
-    blob = '\n'.join(lines)
-    tree = cls._parse(blob, filename)
-    return cls(blob, tree, filename)
+    return cls('\n'.join(lines))
 
   @classmethod
   def iter_tokens(cls, blob):
@@ -258,17 +229,16 @@ class Nit(object):
   def flatten_lines(*line_or_line_list):
     return itertools.chain(*line_or_line_list)
 
-  def __init__(self, code, severity, filename, message, line_range=None, lines=None):
+  def __init__(self, code, severity, python_file, message, line_number=None):
     if severity not in self.SEVERITY:
       raise ValueError('Severity should be one of {}'.format(' '.join(self.SEVERITY.values())))
+    self.python_file = python_file
     if not re.match(r'[A-Z]\d{3}', code):
       raise ValueError('Code must contain a prefix letter followed by a 3 digit number')
-    self.filename = filename
     self.code = code
     self.severity = severity
     self._message = message
-    self._line_range = line_range
-    self._lines = lines
+    self._line_number = line_number
 
   def __str__(self):
     """convert ascii for safe terminal output"""
@@ -277,8 +247,8 @@ class Nit(object):
 
   @property
   def line_number(self):
-    if self._line_range:
-      line_range = self._line_range
+    if self._line_number:
+      line_range = self.python_file.line_range(self._line_number)
       if line_range.stop - line_range.start > 1:
         return '%03d-%03d' % (line_range.start, line_range.stop - 1)
       else:
@@ -289,33 +259,13 @@ class Nit(object):
     return '{code}:{severity:<7} {filename}:{linenum} {message}'.format(
         code=self.code,
         severity=self.SEVERITY[self.severity],
-        filename=self.filename,
+        filename=self.python_file.filename,
         linenum=self.line_number or '*',
         message=self._message)
 
   @property
   def lines(self):
-    return self._lines or []
-
-  @property
-  def has_lines_to_display(self):
-    return len(self.lines) > 0
-
-
-class CheckSyntaxError(Exception):
-  def __init__(self, syntax_error, blob, filename):
-    self.filename = filename
-    self._blob = blob
-    self._syntax_error = syntax_error
-
-  def as_nit(self):
-    line_range = slice(self._syntax_error.lineno, self._syntax_error.lineno + 1)
-    lines = OffByOneList(self._blob.split('\n'))
-    # NB: E901 is the SyntaxError PEP8 code.
-    # See:http://pep8.readthedocs.org/en/latest/intro.html#error-codes
-    return Nit('E901', Nit.ERROR, self.filename,
-               'SyntaxError: {error}'.format(error=self._syntax_error.msg),
-               line_range=line_range, lines=lines)
+    return self.python_file[self._line_number] if self._line_number else []
 
 
 class CheckstylePlugin(AbstractClass):
@@ -352,17 +302,7 @@ class CheckstylePlugin(AbstractClass):
       line_number = line_number_or_ast
     elif isinstance(line_number_or_ast, ast.AST):
       line_number = getattr(line_number_or_ast, 'lineno', None)
-
-    if line_number:
-      line_range = self.python_file.line_range(line_number)
-      lines = self.python_file[line_number]
-    else:
-      line_range = None
-      lines = None
-
-    return Nit(code, severity, self.python_file.filename, message,
-               line_range=line_range,
-               lines=lines)
+    return Nit(code, severity, self.python_file, message, line_number)
 
   def comment(self, code, message, line_number_or_ast=None):
     return self.nit(code, Nit.COMMENT, message, line_number_or_ast)

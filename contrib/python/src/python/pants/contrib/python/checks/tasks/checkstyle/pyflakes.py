@@ -31,14 +31,12 @@ class FlakeError(Nit):
   }
 
   def __init__(self, python_file, flake_message):
-    line_range = python_file.line_range(flake_message.lineno)
     super(FlakeError, self).__init__(
         self.get_error_code(flake_message),
         Nit.ERROR,
-        python_file.filename,
+        python_file,
         flake_message.message % flake_message.message_args,
-        line_range,
-        python_file.lines[line_range])
+        flake_message.lineno)
 
   @classmethod
   def get_error_code(cls, message):
