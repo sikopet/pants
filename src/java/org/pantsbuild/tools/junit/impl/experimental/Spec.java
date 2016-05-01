@@ -3,22 +3,22 @@ package org.pantsbuild.tools.junit.impl.experimental;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import org.pantsbuild.junit.annotations.TestParallel;
 import org.pantsbuild.junit.annotations.TestParallelBoth;
+import org.pantsbuild.junit.annotations.TestParallelMethods;
 import org.pantsbuild.junit.annotations.TestSerial;
 import org.pantsbuild.tools.junit.impl.Concurrency;
-import org.pantsbuild.junit.annotations.TestParallelMethods;
 
-public class TestSpec {
+public class Spec {
   private Class<?> clazz;
   private Set<String> methods;
 
-  public TestSpec(Class<?> clazz) {
+  public Spec(Class<?> clazz) {
     Preconditions.checkNotNull(clazz);
     this.clazz = clazz;
-    this.methods = new HashSet<String>();
+    this.methods = new LinkedHashSet<String>();
   }
 
   public String getSpecName() {
@@ -29,7 +29,7 @@ public class TestSpec {
     return this.clazz;
   }
 
-  public void addMethod(String method)  throws TestSpecException {
+  public void addMethod(String method) {
     Preconditions.checkNotNull(method);
     methods.add(method);
   }

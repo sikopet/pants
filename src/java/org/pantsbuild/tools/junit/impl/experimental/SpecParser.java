@@ -1,19 +1,21 @@
 package org.pantsbuild.tools.junit.impl.experimental;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Takes strings passed to the command line representing packages or individual methods
- * and returns a parsed TestSpec.  Each TestSpec represents a single class, so individual methods
+ * and returns a parsed Spec.  Each Spec represents a single class, so individual methods
  * are added into each spec
  */
-public class TestSpecParser {
+public class SpecParser {
   private final Iterable<String> testSpecStrings;
-  private Map<Class<?>, TestSpec> specs = new HashMap<Class<?>, TestSpec>();
+  private Map<Class<?>, Spec> specs = new HashMap<Class<?>, Spec>();
 
   /**
    * Parses the list of incoming test specs from the command line.
@@ -32,57 +34,61 @@ public class TestSpecParser {
    * </p>
    */
   // TODO(zundel): This could easily be extended to allow a regular expression in the spec
-  public TestSpecParser(Iterable<String> testSpecStrings) {
+  public SpecParser(Collection<String> testSpecStrings) {
+    Preconditions.checkArgument(!testSpecStrings.isEmpty());
     this.testSpecStrings = testSpecStrings;
   }
 
   /**
    * Parse the specs passed in to the constructor.
    * @return List of parsed specs
-   * @throws TestSpecException
+   * @throws SpecException
    */
-  public List<TestSpec> parse() throws TestSpecException {
+  public List<Spec> parse() throws SpecException {
     for (String specString : testSpecStrings) {
-      if (specString.contains("#")) {
+      if (specString.indexOf('#') >= 0) {
         addMethod(specString);
-      } else {
-        // The spec name is expected to be the same as the fully qualified class name
-        if (specs.containsKey(specString)) {
-          TestSpec spec = getOrCreateSpec(specString, specString);
-          if (!spec.getMethods().isEmpty()) {
-            throw new TestSpecException(specString,
-                "Request for entire class already requesting individual methods");
-          }
-        } else {
-          getOrCreateSpec(specString, specString);
-        }
+        continue;
       }
+      // The spec name is expected to be the same as the fully qualified class name
+      if (specs.containsKey(specString)) {
+        Spec spec = getOrCreateSpec(specString, specString);
+        if (!spec.getMethods().isEmpty()) {
+          throw new SpecException(specString,
+              "Request for entire class already requesting individual methods");
+        }
+        continue;
+      }
+      getOrCreateSpec(specString, specString);
     }
     return ImmutableList.copyOf(specs.values());
   }
 
-  private TestSpec getOrCreateSpec(String specString, String className) throws TestSpecException {
+  private Spec getOrCreateSpec(String specString, String className) throws SpecException {
     try {
       Class<?> clazz = getClass().getClassLoader().loadClass(className);
-      return new TestSpec(clazz);
+      if(!specs.containsKey(clazz)) {
+        specs.put(clazz, new Spec(clazz));
+      }
+      return specs.get(clazz);
     } catch (ClassNotFoundException e) {
-      throw new TestSpecException(specString,
-          "Class %s not found in classpath.".format(className), e);
+      throw new SpecException(specString,
+          String.format("Class %s not found in classpath.",className), e);
     }
   }
 
   /**
    * Handle a spec that looks like package.className#methodName
    */
-  public void addMethod(String specString) throws TestSpecException {
+  public void addMethod(String specString) throws SpecException {
     String[] results = specString.split("#");
     if (results.length != 2) {
-      throw new TestSpecException(specString, "Expected only one # in spec");
+      throw new SpecException(specString, "Expected only one # in spec");
     }
     String className = results[0];
     String methodName = results[1];
 
-    TestSpec spec = getOrCreateSpec(specString, className);
+    Spec spec = getOrCreateSpec(specString, className);
     boolean found = false;
     for (Method clazzMethod : spec.getSpecClass().getMethods()) {
       if (clazzMethod.getName().equals(methodName)) {
@@ -91,8 +97,8 @@ public class TestSpecParser {
       }
     }
     if (!found) {
-      throw new TestSpecException(specString,
-          "Method %s not found in class %s".format(methodName, className));
+      throw new SpecException(specString,
+          String.format("Method %s not found in class %s", methodName, className));
     }
     spec.addMethod(methodName);
   }

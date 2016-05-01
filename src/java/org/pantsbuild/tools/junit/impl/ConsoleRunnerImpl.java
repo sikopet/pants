@@ -4,6 +4,7 @@
 package org.pantsbuild.tools.junit.impl;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -56,9 +57,10 @@ import org.kohsuke.args4j.spi.StringArrayOptionHandler;
 import org.pantsbuild.args4j.InvalidCmdLineArgumentException;
 import org.pantsbuild.tools.junit.impl.experimental.ConcurrentComputer;
 import org.pantsbuild.tools.junit.impl.experimental.RequestBuilder;
-import org.pantsbuild.tools.junit.impl.experimental.TestSpec;
-import org.pantsbuild.tools.junit.impl.experimental.TestSpecException;
-import org.pantsbuild.tools.junit.impl.experimental.TestSpecParser;
+import org.pantsbuild.tools.junit.impl.experimental.Spec;
+import org.pantsbuild.tools.junit.impl.experimental.SpecException;
+import org.pantsbuild.tools.junit.impl.experimental.SpecFilter;
+import org.pantsbuild.tools.junit.impl.experimental.SpecParser;
 import org.pantsbuild.tools.junit.withretry.AllDefaultPossibilitiesBuilderWithRetry;
 
 /**
@@ -449,25 +451,36 @@ public class ConsoleRunnerImpl {
     Preconditions.checkArgument(!tests.isEmpty());
     Preconditions.checkNotNull(core);
 
-    List<TestSpec> parsedTests;
+    List<Spec> parsedTests;
     try {
-      parsedTests = new TestSpecParser(tests).parse();
-    } catch (TestSpecException e) {
+      parsedTests = new SpecParser(tests).parse();
+    } catch (SpecException e) {
       throw new InitializationError(e);
     }
 
-    List<Request> requests = new RequestBuilder(perTestTimer,
-        testShard,
-        numTestShards,
-        numRetries).createRequests(parsedTests);
+    // Run all of the parallel tests using the Concurrent Computer
+    // TODO(zundel) use streams when we move to java 8
+    Set<Spec> allSpecs = ImmutableSet.copyOf(parsedTests);
+    Set<Spec> specsWithNoMethods = SpecFilter.filterNoMethods(allSpecs);
+    Set<Spec> parallelBoth = SpecFilter.filterConcurrency(specsWithNoMethods,
+        Concurrency.PARALLEL_BOTH, defaultConcurrency);
+    Set<Spec> parallelClasses = SpecFilter.filterConcurrency(
+        Sets.difference(specsWithNoMethods, parallelBoth),
+        Concurrency.PARALLEL_CLASSES, defaultConcurrency);
+    Set<Spec> parallelMethods = SpecFilter.filterConcurrency(
+        Sets.difference(specsWithNoMethods, Sets.union(parallelBoth, parallelClasses)),
+        Concurrency.PARALLEL_METHODS, defaultConcurrency);
 
-    Computer junitComputer = new ConcurrentComputer(defaultConcurrency, parallelThreads);
+    // Everything else has to run serially
+    Set<Spec> serialTests = Sets.difference(allSpecs,
+        Sets.union(parallelBoth, Sets.union(parallelClasses, parallelMethods)));
 
     int failures = 0;
+
     for (Request request : requests) {
-      failures += core.run(junitComputer, request).getFailureCount();
+      //failures += core.run(junitComputer, request).getFailureCount();
     }
-    return runner.run();
+    return failures;
   }
 
   private int run_legacy(Iterable<String> tests, JUnitCore core) throws InitializationError {
