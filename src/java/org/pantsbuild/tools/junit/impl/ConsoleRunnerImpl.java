@@ -17,6 +17,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -53,6 +54,11 @@ import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.spi.StringArrayOptionHandler;
 
 import org.pantsbuild.args4j.InvalidCmdLineArgumentException;
+import org.pantsbuild.tools.junit.impl.experimental.ConcurrentComputer;
+import org.pantsbuild.tools.junit.impl.experimental.RequestBuilder;
+import org.pantsbuild.tools.junit.impl.experimental.TestSpec;
+import org.pantsbuild.tools.junit.impl.experimental.TestSpecException;
+import org.pantsbuild.tools.junit.impl.experimental.TestSpecParser;
 import org.pantsbuild.tools.junit.withretry.AllDefaultPossibilitiesBuilderWithRetry;
 
 /**
@@ -340,8 +346,10 @@ public class ConsoleRunnerImpl {
   private final int testShard;
   private final int numTestShards;
   private final int numRetries;
+  private final boolean useExperimentalRunner;
   private final SwappableStream<PrintStream> swappableOut;
   private final SwappableStream<PrintStream> swappableErr;
+
 
   ConsoleRunnerImpl(
       boolean failFast,
@@ -354,6 +362,7 @@ public class ConsoleRunnerImpl {
       int testShard,
       int numTestShards,
       int numRetries,
+      boolean useExperimentalRunner,
       PrintStream out,
       PrintStream err) {
 
@@ -374,18 +383,12 @@ public class ConsoleRunnerImpl {
     this.numRetries = numRetries;
     this.swappableOut = new SwappableStream<PrintStream>(out);
     this.swappableErr = new SwappableStream<PrintStream>(err);
+    this.useExperimentalRunner = useExperimentalRunner;
   }
 
-  void run(Iterable<String> tests) {
+  void run(Collection<String> tests) {
     System.setOut(new PrintStream(swappableOut));
     System.setErr(new PrintStream(swappableErr));
-
-    List<Request> requests =
-        parseRequests(swappableOut.getOriginal(), swappableErr.getOriginal(), tests);
-
-    if (numTestShards > 0) {
-      requests = setFilterForTestShard(requests);
-    }
 
     JUnitCore core = new JUnitCore();
     final AbortableListener abortableListener = new AbortableListener(failFast) {
@@ -424,17 +427,13 @@ public class ConsoleRunnerImpl {
     final Thread abnormalExitHook =
         createAbnormalExitHook(abortableListener, swappableOut.getOriginal());
     Runtime.getRuntime().addShutdownHook(abnormalExitHook);
+
     int failures = 0;
     try {
-      if (this.parallelThreads > 1) {
-        ConcurrentCompositeRequest request = new ConcurrentCompositeRequest(
-            requests, this.defaultConcurrency, this.parallelThreads);
-        failures = core.run(request).getFailureCount();
+      if (useExperimentalRunner) {
+        failures = run_experimental(tests, core);
       } else {
-        for (Request request : requests) {
-          Result result = core.run(request);
-          failures += result.getFailureCount();
-        }
+        failures = run_legacy(tests, core);
       }
     } catch (InitializationError initializationError) {
       failures = 1;
@@ -446,30 +445,54 @@ public class ConsoleRunnerImpl {
     exit(failures);
   }
 
-  /**
-   * Returns a thread that records a system exit to the listener, and then halts(1).
-   */
-  private Thread createAbnormalExitHook(final AbortableListener listener, final PrintStream out) {
-    Thread abnormalExitHook = new Thread() {
-      @Override public void run() {
-        try {
-          listener.abort(new UnknownError("Abnormal VM exit - test crashed."));
-          // We want to trap and log no matter why abort failed for a better end user message.
-        } catch (Exception e) {
-          out.println(e);
-          e.printStackTrace(out);
-        }
-        // This error might be a call to `System.exit(0)`, which we definitely do
-        // not want to go unnoticed.
-        out.println("FATAL: VM exiting uncleanly.");
-        out.flush();
-        Runtime.getRuntime().halt(1);
-      }
-    };
-    return abnormalExitHook;
+  private int run_experimental(Collection<String> tests, JUnitCore core) throws InitializationError {
+    Preconditions.checkArgument(!tests.isEmpty());
+    Preconditions.checkNotNull(core);
+
+    List<TestSpec> parsedTests;
+    try {
+      parsedTests = new TestSpecParser(tests).parse();
+    } catch (TestSpecException e) {
+      throw new InitializationError(e);
+    }
+
+    List<Request> requests = new RequestBuilder(perTestTimer,
+        testShard,
+        numTestShards,
+        numRetries).createRequests(parsedTests);
+
+    Computer junitComputer = new ConcurrentComputer(defaultConcurrency, parallelThreads);
+
+    int failures = 0;
+    for (Request request : requests) {
+      failures += core.run(junitComputer, request).getFailureCount();
+    }
+    return runner.run();
   }
 
-  private List<Request> parseRequests(PrintStream out, PrintStream err, Iterable<String> specs) {
+  private int run_legacy(Iterable<String> tests, JUnitCore core) throws InitializationError {
+    List<Request> requests =
+        legacyParseRequests(swappableOut.getOriginal(), swappableErr.getOriginal(), tests);
+
+    if (numTestShards > 0) {
+      requests = setFilterForTestShard(requests);
+    }
+
+    int failures = 0;
+    if (this.parallelThreads > 1) {
+      ConcurrentCompositeRequest request = new ConcurrentCompositeRequest(
+          requests, this.defaultConcurrency, this.parallelThreads);
+      failures = core.run(request).getFailureCount();
+    } else {
+      for (Request request : requests) {
+        Result result = core.run(request);
+        failures += result.getFailureCount();
+      }
+    }
+    return failures;
+  }
+
+  private List<Request> legacyParseRequests(PrintStream out, PrintStream err, Iterable<String> specs) {
     /**
      * Datatype representing an individual test method.
      */
@@ -550,6 +573,29 @@ public class ConsoleRunnerImpl {
           .filterWith(Description.createTestDescription(testMethod.clazz, testMethod.name)));
     }
     return requests;
+  }
+
+  /**
+   * Returns a thread that records a system exit to the listener, and then halts(1).
+   */
+  private Thread createAbnormalExitHook(final AbortableListener listener, final PrintStream out) {
+    Thread abnormalExitHook = new Thread() {
+      @Override public void run() {
+        try {
+          listener.abort(new UnknownError("Abnormal VM exit - test crashed."));
+          // We want to trap and log no matter why abort failed for a better end user message.
+        } catch (Exception e) {
+          out.println(e);
+          e.printStackTrace(out);
+        }
+        // This error might be a call to `System.exit(0)`, which we definitely do
+        // not want to go unnoticed.
+        out.println("FATAL: VM exiting uncleanly.");
+        out.flush();
+        Runtime.getRuntime().halt(1);
+      }
+    };
+    return abnormalExitHook;
   }
 
   private boolean shouldRunParallelMethods(Class<?> clazz) {
@@ -738,6 +784,10 @@ public class ConsoleRunnerImpl {
                 metaVar = "TESTS",
                 handler = StringArrayOptionHandler.class)
       private String[] tests = {};
+
+      @Option(name="-use-experimental-runner",
+          usage="Use the experimental runner that has support for parallel methods")
+      private boolean useExperimentalRunner;
     }
 
     Options options = new Options();
@@ -766,6 +816,7 @@ public class ConsoleRunnerImpl {
             options.testShard,
             options.numTestShards,
             options.numRetries,
+            options.useExperimentalRunner,
             System.out,
             System.err);
 
