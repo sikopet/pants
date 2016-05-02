@@ -35,8 +35,8 @@ public class Spec {
   }
 
   /**
-   * @return either the Concurrency value specified by the class annotation or the default concurrency
-   * passed in the parameter.
+   * @return either the Concurrency value specified by the class annotation or the default
+   * concurrency setting passed in the parameter.
    */
   public Concurrency getConcurrency(Concurrency defaultConcurrency) {
     if (clazz.isAnnotationPresent(TestSerial.class)) {

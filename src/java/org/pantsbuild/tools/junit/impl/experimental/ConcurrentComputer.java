@@ -20,13 +20,13 @@ public class ConcurrentComputer extends Computer {
   public ConcurrentComputer(Concurrency concurrency, int numParallelThreads) {
     Preconditions.checkNotNull(concurrency);
     this.concurrency = concurrency;
-    this.numParallelThreads = numParallelThreads;
+    this.numParallelThreads = numParallelThreads > 0 ? numParallelThreads : 1;
   }
 
-  private static Runner parallelize(Runner runner) {
+  private Runner parallelize(Runner runner) {
     if (runner instanceof ParentRunner) {
       ((ParentRunner<?>) runner).setScheduler(new RunnerScheduler() {
-        private final ExecutorService fService = Executors.newCachedThreadPool();
+        private final ExecutorService fService = Executors.newFixedThreadPool(numParallelThreads);
 
         public void schedule(Runnable childStatement) {
           fService.submit(childStatement);
@@ -35,6 +35,7 @@ public class ConcurrentComputer extends Computer {
         public void finished() {
           try {
             fService.shutdown();
+            // TODO(zundel): Change long wait?
             fService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
           } catch (InterruptedException e) {
             e.printStackTrace(System.err);

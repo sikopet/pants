@@ -5,7 +5,7 @@ import org.junit.Test;
 /**
  * For use in other test methods
  */
-public class DummyClass {
+public class UnannotatedTestClass {
   @Test public void testMethod() {
   }
 }

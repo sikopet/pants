@@ -11,7 +11,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 public class SpecParserTest {
-  private static final String DUMMY_CLASS_NAME =  "org.pantsbuild.tools.junit.impl.experimental.DummyClass";
+  private static final String DUMMY_CLASS_NAME =  "org.pantsbuild.tools.junit.impl.experimental.UnannotatedTestClass";
   private static final String DUMMY_METHOD_NAME = "testMethod";
 
   @Test public void testEmptySpecsThrows() {
@@ -27,7 +27,7 @@ public class SpecParserTest {
     List<Spec> specs = parser.parse();
     assertEquals(1, specs.size());
     Spec spec = specs.get(0);
-    assertEquals(DummyClass.class,spec.getSpecClass());
+    assertEquals(UnannotatedTestClass.class,spec.getSpecClass());
     assertEquals(DUMMY_CLASS_NAME, spec.getSpecName());
     assertEquals(0, spec.getMethods().size());
   }
@@ -38,7 +38,7 @@ public class SpecParserTest {
     List<Spec> specs = parser.parse();
     assertEquals(1, specs.size());
     Spec spec = specs.get(0);
-    assertEquals(DummyClass.class, spec.getSpecClass());
+    assertEquals(UnannotatedTestClass.class, spec.getSpecClass());
     assertEquals(DUMMY_CLASS_NAME, spec.getSpecName());
     assertEquals(ImmutableList.of(DUMMY_METHOD_NAME), spec.getMethods());
   }

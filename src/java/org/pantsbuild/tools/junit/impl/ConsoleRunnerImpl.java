@@ -4,7 +4,6 @@
 package org.pantsbuild.tools.junit.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -56,10 +55,10 @@ import org.kohsuke.args4j.spi.StringArrayOptionHandler;
 
 import org.pantsbuild.args4j.InvalidCmdLineArgumentException;
 import org.pantsbuild.tools.junit.impl.experimental.ConcurrentComputer;
-import org.pantsbuild.tools.junit.impl.experimental.RequestBuilder;
+import org.pantsbuild.tools.junit.impl.experimental.RequestFactory;
 import org.pantsbuild.tools.junit.impl.experimental.Spec;
 import org.pantsbuild.tools.junit.impl.experimental.SpecException;
-import org.pantsbuild.tools.junit.impl.experimental.SpecFilter;
+import org.pantsbuild.tools.junit.impl.experimental.SpecSet;
 import org.pantsbuild.tools.junit.impl.experimental.SpecParser;
 import org.pantsbuild.tools.junit.withretry.AllDefaultPossibilitiesBuilderWithRetry;
 
@@ -447,7 +446,8 @@ public class ConsoleRunnerImpl {
     exit(failures);
   }
 
-  private int run_experimental(Collection<String> tests, JUnitCore core) throws InitializationError {
+  private int run_experimental(Collection<String> tests, JUnitCore core)
+      throws InitializationError {
     Preconditions.checkArgument(!tests.isEmpty());
     Preconditions.checkNotNull(core);
 
@@ -458,29 +458,35 @@ public class ConsoleRunnerImpl {
       throw new InitializationError(e);
     }
 
-    // Run all of the parallel tests using the Concurrent Computer
-    // TODO(zundel) use streams when we move to java 8
-    Set<Spec> allSpecs = ImmutableSet.copyOf(parsedTests);
-    Set<Spec> specsWithNoMethods = SpecFilter.filterNoMethods(allSpecs);
-    Set<Spec> parallelBoth = SpecFilter.filterConcurrency(specsWithNoMethods,
-        Concurrency.PARALLEL_BOTH, defaultConcurrency);
-    Set<Spec> parallelClasses = SpecFilter.filterConcurrency(
-        Sets.difference(specsWithNoMethods, parallelBoth),
-        Concurrency.PARALLEL_CLASSES, defaultConcurrency);
-    Set<Spec> parallelMethods = SpecFilter.filterConcurrency(
-        Sets.difference(specsWithNoMethods, Sets.union(parallelBoth, parallelClasses)),
-        Concurrency.PARALLEL_METHODS, defaultConcurrency);
+    int failures = 0;
+    SpecSet filter = new SpecSet(parsedTests, defaultConcurrency);
+
+    // TODO(zundel): Test sharding isn't compatible with the parallel computer runner since it
+    // only accepts Class objects.
+    if (numTestShards == 0) {
+      // Run all of the parallel tests using the ConcurrentComputer
+      failures += runConcurrentTests(core, filter, Concurrency.PARALLEL_BOTH);
+      failures += runConcurrentTests(core, filter, Concurrency.PARALLEL_CLASSES);
+      failures += runConcurrentTests(core, filter, Concurrency.PARALLEL_METHODS);
+    }
 
     // Everything else has to run serially
-    Set<Spec> serialTests = Sets.difference(allSpecs,
-        Sets.union(parallelBoth, Sets.union(parallelClasses, parallelMethods)));
-
-    int failures = 0;
-
-    for (Request request : requests) {
-      //failures += core.run(junitComputer, request).getFailureCount();
+    Set<Spec> serialTests = filter.remaining();
+    List<Request> requests = new RequestFactory()
+        .createRequests(serialTests, numRetries, swappableErr.getOriginal());
+    if (numTestShards > 0) {
+      requests = setFilterForTestShard(requests);
     }
+    for (Request request : requests) {
+      failures += core.run(request).getFailureCount();
+    }
+
     return failures;
+  }
+
+  private int runConcurrentTests(JUnitCore core, SpecSet specSet, Concurrency concurrency) {
+    Computer junitComputer = new ConcurrentComputer(concurrency, parallelThreads);
+    return core.run(junitComputer, specSet.extractClasses(concurrency)).getFailureCount();
   }
 
   private int run_legacy(Iterable<String> tests, JUnitCore core) throws InitializationError {
@@ -505,7 +511,8 @@ public class ConsoleRunnerImpl {
     return failures;
   }
 
-  private List<Request> legacyParseRequests(PrintStream out, PrintStream err, Iterable<String> specs) {
+  private List<Request> legacyParseRequests(PrintStream out, PrintStream err,
+      Iterable<String> specs) {
     /**
      * Datatype representing an individual test method.
      */
@@ -800,7 +807,7 @@ public class ConsoleRunnerImpl {
 
       @Option(name="-use-experimental-runner",
           usage="Use the experimental runner that has support for parallel methods")
-      private boolean useExperimentalRunner;
+      private boolean useExperimentalRunner = true;
     }
 
     Options options = new Options();

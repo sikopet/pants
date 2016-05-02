@@ -1,41 +1,29 @@
 package org.pantsbuild.tools.junit.impl.experimental;
 
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-import org.pantsbuild.tools.junit.impl.Concurrency;
+import org.junit.runner.Description;
+import org.junit.runner.manipulation.Filter;
 
+public class SpecFilter extends Filter {
+  private final Spec spec;
 
-public class SpecFilter {
-
-  /**
-   * Return all specs that match the specfied Concurrency parameter.
-   */
-  public static Set<Spec> filterConcurrency(Set<Spec> specs, Concurrency concurrencyFilter,
-      Concurrency defaultConcurrency) {
-    Set<Spec> results = new LinkedHashSet<Spec>();
-    for (Spec spec : specs) {
-      if (spec.getConcurrency(defaultConcurrency).equals(concurrencyFilter)) {
-        results.add(spec);
-      }
-    }
-    return results;
+  public SpecFilter(Spec spec) {
+    this.spec = spec;
   }
 
-  /**
-   * Return all specs with no methods defined.
-   */
-  public static Set<Spec> filterNoMethods(Set<Spec> specs) {
-    Set<Spec> results = new LinkedHashSet<Spec>();
-    for (Spec spec : specs) {
-      if (spec.getMethods().size() == 0) {
-        results.add(spec);
+  @Override public boolean shouldRun(Description description) {
+    if (spec.getMethods().isEmpty()) {
+      return true;
+    }
+
+    for (String method : spec.getMethods()) {
+      if (Description.createTestDescription(spec.getSpecClass(), method).equals(description)) {
+        return true;
       }
     }
-    return results;
+    return false;
   }
 
-  // Utility class, do not instantiate
-  private SpecFilter() {
+  @Override public String describe() {
+    return "Filters using a Spec";
   }
 }

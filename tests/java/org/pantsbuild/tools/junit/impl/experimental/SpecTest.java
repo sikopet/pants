@@ -2,10 +2,6 @@ package org.pantsbuild.tools.junit.impl.experimental;
 
 import com.google.common.collect.ImmutableList;
 import org.junit.Test;
-import org.pantsbuild.junit.annotations.TestParallel;
-import org.pantsbuild.junit.annotations.TestParallelBoth;
-import org.pantsbuild.junit.annotations.TestParallelMethods;
-import org.pantsbuild.junit.annotations.TestSerial;
 import org.pantsbuild.tools.junit.impl.Concurrency;
 
 import static org.junit.Assert.assertEquals;
@@ -13,9 +9,9 @@ import static org.junit.Assert.assertEquals;
 public class SpecTest {
 
   @Test public void testAddMethod() throws Exception {
-    Spec spec = new Spec(DummyClass.class);
-    assertEquals(DummyClass.class, spec.getSpecClass());
-    assertEquals("org.pantsbuild.tools.junit.impl.experimental.SpecTest$DummyClass", spec.getSpecName());
+    Spec spec = new Spec(UnannotatedTestClass.class);
+    assertEquals(UnannotatedTestClass.class, spec.getSpecClass());
+    assertEquals("org.pantsbuild.tools.junit.impl.experimental.UnannotatedTestClass", spec.getSpecName());
     assertEquals(ImmutableList.of(), spec.getMethods());
     spec.addMethod("testMethod");
     assertEquals(ImmutableList.of("testMethod"), spec.getMethods());
@@ -24,7 +20,7 @@ public class SpecTest {
   }
 
   @Test public void testDefaultConcurrency() {
-    Spec spec = new Spec(DummyClass.class);
+    Spec spec = new Spec(UnannotatedTestClass.class);
     assertEquals(Concurrency.SERIAL, spec.getConcurrency(Concurrency.SERIAL));
     assertEquals(Concurrency.PARALLEL_CLASSES, spec.getConcurrency(Concurrency.PARALLEL_CLASSES));
     assertEquals(Concurrency.PARALLEL_METHODS, spec.getConcurrency(Concurrency.PARALLEL_METHODS));
@@ -32,13 +28,18 @@ public class SpecTest {
   }
 
   @Test public void testAnnotatedConcurrency() {
-    Spec spec = new Spec(ParallelBothClass.class);
-    assertEquals(Concurrency.PARALLEL_BOTH, spec.getConcurrency(Concurrency.SERIAL));
+    Spec spec = new Spec(ParallelBothAnnotatedClass.class);
+    assertEquals(Concurrency.PARALLEL_BOTH, spec.getConcurrency(Concurrency.PARALLEL_BOTH));
+    assertEquals(Concurrency.PARALLEL_BOTH, spec.getConcurrency(Concurrency.PARALLEL_CLASSES));
     assertEquals(Concurrency.PARALLEL_BOTH, spec.getConcurrency(Concurrency.PARALLEL_METHODS));
+    assertEquals(Concurrency.PARALLEL_BOTH, spec.getConcurrency(Concurrency.SERIAL));
   }
 
   @Test public void testAnnotationPrecedence() {
     Spec spec = new Spec(AnnotationOverrideClass.class);
     assertEquals(Concurrency.SERIAL, spec.getConcurrency(Concurrency.PARALLEL_BOTH));
+    assertEquals(Concurrency.SERIAL, spec.getConcurrency(Concurrency.PARALLEL_CLASSES));
+    assertEquals(Concurrency.SERIAL, spec.getConcurrency(Concurrency.PARALLEL_METHODS));
+    assertEquals(Concurrency.SERIAL, spec.getConcurrency(Concurrency.SERIAL));
   }
 }
