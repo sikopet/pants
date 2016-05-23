@@ -196,10 +196,17 @@ public class ConsoleRunnerTest extends ConsoleRunnerTestBase {
   }
 
   @Test
-  public void testConcurrencyParallelBoth() throws Exception {
+  public void testConcurrencyParallelMethods() throws Exception {
     invokeConsoleRunner("ParallelMethodsDefaultParallelTest1 ParallelMethodsDefaultParallelTest2"
-            + " -default-concurrency PARALLEL_BOTH -parallel-threads 4");
+        + " -default-concurrency PARALLEL_METHODS -parallel-threads 4");
     assertEquals("pmdptest11 pmdptest12 pmdptest21 pmdptest22", TestRegistry.getCalledTests());
+  }
+
+  @Test
+  public void testConcurrencyParallelBoth() throws Exception {
+    invokeConsoleRunner("ParallelBothDefaultParallelTest1 ParallelBothDefaultParallelTest2"
+            + " -default-concurrency PARALLEL_BOTH -parallel-threads 4");
+    assertEquals("pbdptest11 pbdptest12 pbdptest21 pbdptest22", TestRegistry.getCalledTests());
   }
 
   @Test

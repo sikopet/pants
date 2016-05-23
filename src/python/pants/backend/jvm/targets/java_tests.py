@@ -43,8 +43,7 @@ class JavaTests(JvmTarget):
     :param dict extra_env_vars: A map of environment variables to set when running the tests, e.g.
       { 'FOOBAR': 12 }. Using `None` as the value will cause the variable to be unset.
     :param string concurrency: One of 'SERIAL', 'PARALLEL_CLASSES', 'PARALLEL_METHODS',
-      or 'PARALLEL_BOTH'.  Overrides the setting of --test-junit-default-parallel or
-      --test-junit-parallel-methods options.
+      or 'PARALLEL_BOTH'.  Overrides the setting of --test-junit-default-concurrency.
     :param int threads: Use the specified number of threads when running the test. Overrides
       the setting of --test-junit-parallel-threads.
     """
