@@ -7,6 +7,8 @@ from __future__ import (absolute_import, division, generators, nested_scopes, pr
 
 from hashlib import sha1
 
+from pants.base.fingerprint_log import logged_hasher
+
 
 class PayloadFieldAlreadyDefinedError(Exception): pass
 
@@ -107,7 +109,7 @@ class Payload(object):
     return self._fingerprint_memo_map[field_keys]
 
   def _compute_fingerprint(self, field_keys):
-    hasher = sha1()
+    hasher = logged_hasher()
     empty_hash = True
     for key in sorted(field_keys):
       field = self._fields[key]

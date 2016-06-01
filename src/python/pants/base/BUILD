@@ -85,9 +85,15 @@ python_library(
 )
 
 python_library(
+  name = 'fingerprint_log',
+  sources = ['fingerprint_log.py'],
+)
+
+python_library(
   name = 'fingerprint_strategy',
   sources = ['fingerprint_strategy.py'],
   dependencies = [
+    ':fingerprint_log',
     'src/python/pants/util:meta',
   ]
 )
