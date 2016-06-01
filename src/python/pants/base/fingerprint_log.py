@@ -5,6 +5,7 @@
 from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
                         unicode_literals, with_statement)
 
+import json
 import logging
 from contextlib import contextmanager
 from hashlib import sha1
@@ -40,6 +41,11 @@ class FingerprintLog(object):
 
   __current_scope = None
   __logs_by_scope = {}
+
+  @classmethod
+  def export_json(cls):
+    sorted_instances = sorted(cls.__logs_by_scope.values(), key=lambda x: x.scope)
+    return {instance.scope: instance._fields for instance in sorted_instances}
 
   @classmethod
   def for_scope(cls, scope):
@@ -87,6 +93,13 @@ class FingerprintLog(object):
   def log(self, key, value):
     self._fields.append((key, value))
     logger.info('[{}] {} = {}'.format(self.scope, key, value))
+    with open('/Users/gmalmquist/Desktop/Logs/fingerprint_log.json', 'w') as f: # XXX
+      f.write(json.dumps(
+        FingerprintLog.export_json(),
+        indent=4,
+        separators=(',', ': '),
+        sort_keys=True,
+      ))
 
   def hasher(self):
     if self._hasher is None:
