@@ -29,6 +29,7 @@ class Payload(object):
     self._fields = {}
     self._frozen = False
     self._fingerprint_memo_map = {}
+    self._log_scope = None
 
   @property
   def fields(self):
@@ -109,7 +110,7 @@ class Payload(object):
     return self._fingerprint_memo_map[field_keys]
 
   def _compute_fingerprint(self, field_keys):
-    hasher = logged_hasher()
+    hasher = logged_hasher(subscope=self._log_scope)
     empty_hash = True
     for key in sorted(field_keys):
       field = self._fields[key]

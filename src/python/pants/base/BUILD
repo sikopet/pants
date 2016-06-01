@@ -136,6 +136,7 @@ python_library(
   sources = ['payload_field.py'],
   dependencies = [
     '3rdparty/python/twitter/commons:twitter.common.collections',
+    'src/python/pants/base:fingerprint_log',
     'src/python/pants/util:meta',
   ]
 )

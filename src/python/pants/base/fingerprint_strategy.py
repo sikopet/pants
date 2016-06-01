@@ -74,8 +74,8 @@ class TaskIdentityFingerprintStrategy(FingerprintStrategy):
   def _build_hasher(self, target):
     with FingerprintLog.in_subscope(type(self._task).__name__):
       hasher = logged_hasher()
-      with FingerprintLog.in_subscope(target.id):
-        logged_hasher().update(target.payload.fingerprint() or '', name='target_fingerprint')
+      logged_hasher(subscope=target.id).update(target.payload.fingerprint() or '',
+                                               name='target_fingerprint')
       hasher.update(self._task.fingerprint or '', name='task_fingerprint')
       return hasher
 
