@@ -5,9 +5,9 @@
 from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
                         unicode_literals, with_statement)
 
-import hashlib
 from abc import abstractmethod
 
+from pants.base.fingerprint_log import FingerprintLog, logged_hasher
 from pants.util.meta import AbstractClass
 
 
@@ -72,10 +72,12 @@ class TaskIdentityFingerprintStrategy(FingerprintStrategy):
     self._task = task
 
   def _build_hasher(self, target):
-    hasher = hashlib.sha1()
-    hasher.update(target.payload.fingerprint() or '')
-    hasher.update(self._task.fingerprint or '')
-    return hasher
+    with FingerprintLog.in_subscope(type(self._task).__name__):
+      hasher = logged_hasher()
+      logged_hasher(subscope=target.id).update(target.payload.fingerprint() or '',
+                                               name='target_fingerprint')
+      hasher.update(self._task.fingerprint or '', name='task_fingerprint')
+      return hasher
 
   def compute_fingerprint(self, target):
     """

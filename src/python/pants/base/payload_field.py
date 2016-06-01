@@ -11,6 +11,7 @@ from hashlib import sha1
 
 from twitter.common.collections import OrderedSet
 
+from pants.base.fingerprint_log import logged_hasher
 from pants.util.meta import AbstractClass
 
 

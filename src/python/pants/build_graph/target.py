@@ -367,6 +367,8 @@ class Target(AbstractTarget):
     if kwargs:
       self.UnknownArguments.check(self, kwargs)
 
+    self.payload._log_scope = self.id
+
   @property
   def scope(self):
     return self._scope

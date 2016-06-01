@@ -9,6 +9,7 @@ import copy
 import sys
 
 from pants.base.deprecated import warn_or_error
+from pants.base.fingerprint_log import FingerprintLog
 from pants.option.arg_splitter import GLOBAL_SCOPE, ArgSplitter
 from pants.option.global_options import GlobalOptionsRegistrar
 from pants.option.option_util import is_list_option
@@ -343,6 +344,8 @@ class Options(object):
           val_type = kwargs.get('member_type', str)
         else:
           val_type = kwargs.get('type', str)
+        FingerprintLog.current_instance().log('name-{:3d}'.format(len(pairs)), '{} = {}'.format(
+          kwargs['dest'], val))
         pairs.append((val_type, val))
       registration_scope = (None if registration_scope == ''
                             else enclosing_scope(registration_scope))

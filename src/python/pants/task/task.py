@@ -12,6 +12,7 @@ from hashlib import sha1
 from itertools import repeat
 
 from pants.base.exceptions import TaskError
+from pants.base.fingerprint_log import FingerprintLog, logged_hasher
 from pants.base.fingerprint_strategy import TaskIdentityFingerprintStrategy
 from pants.base.worker_pool import Work
 from pants.cache.artifact_cache import UnreadableArtifact, call_insert, call_use_cached_files
@@ -237,13 +238,14 @@ class TaskBase(SubsystemClientMixin, Optionable, AbstractClass):
     return self._workdir
 
   def _options_fingerprint(self, scope):
-    pairs = self.context.options.get_fingerprintable_for_scope(scope)
-    hasher = sha1()
-    for (option_type, option_val) in pairs:
-      fp = self._options_fingerprinter.fingerprint(option_type, option_val)
-      if fp is not None:
-        hasher.update(fp)
-    return hasher.hexdigest()
+    with FingerprintLog.in_subscope(self.options_scope):
+      pairs = self.context.options.get_fingerprintable_for_scope(scope)
+      hasher = logged_hasher()
+      for i, (option_type, option_val) in enumerate(pairs):
+        fp = self._options_fingerprinter.fingerprint(option_type, option_val)
+        if fp is not None:
+          hasher.update(fp, 'option-{:3d} = {}'.format(i, option_val))
+      return hasher.hexdigest()
 
   @memoized_property
   def fingerprint(self):
@@ -255,13 +257,14 @@ class TaskBase(SubsystemClientMixin, Optionable, AbstractClass):
 
     A task's fingerprint is only valid afer the task has been fully initialized.
     """
-    hasher = sha1()
-    hasher.update(self._options_fingerprint(self.options_scope))
-    hasher.update(self.implementation_version_str())
-    # TODO: this is not recursive, but should be: see #2739
-    for dep in self.subsystem_dependencies_iter():
-      hasher.update(self._options_fingerprint(dep.options_scope()))
-    return str(hasher.hexdigest())
+    with FingerprintLog.in_subscope('{}.fingerprint'.format(type(self).__name__)):
+      hasher = logged_hasher()
+      hasher.update(self._options_fingerprint(self.options_scope), 'options_fingerprint')
+      hasher.update(self.implementation_version_str(), 'implementation_version_str')
+      # TODO: this is not recursive, but should be: see #2739
+      for i, dep in enumerate(self.subsystem_dependencies_iter()):
+        hasher.update(self._options_fingerprint(dep.options_scope()), 'subsystem-dep-{}'.format(i))
+      return str(hasher.hexdigest())
 
   def artifact_cache_reads_enabled(self):
     return self._cache_factory.read_cache_available()

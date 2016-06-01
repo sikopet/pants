@@ -13,6 +13,7 @@ from pants.backend.jvm.subsystems.jar_dependency_management import JarDependency
 from pants.backend.jvm.targets.jar_library import JarLibrary
 from pants.backend.jvm.targets.jvm_target import JvmTarget
 from pants.base.exceptions import TaskError
+from pants.base.fingerprint_log import FingerprintLog, logged_hasher
 from pants.base.fingerprint_strategy import TaskIdentityFingerprintStrategy
 from pants.invalidation.cache_manager import VersionedTargetSet
 from pants.ivy.ivy_subsystem import IvySubsystem
@@ -33,29 +34,32 @@ class IvyResolveFingerprintStrategy(TaskIdentityFingerprintStrategy):
   def compute_fingerprint(self, target):
     hash_elements_for_target = []
 
-    if isinstance(target, JarLibrary):
-      managed_jar_artifact_set = JarDependencyManagement.global_instance().for_target(target)
-      if managed_jar_artifact_set:
-        hash_elements_for_target.append(str(managed_jar_artifact_set.id))
+    with FingerprintLog.in_subscope(target.id):
+      if isinstance(target, JarLibrary):
+        managed_jar_artifact_set = JarDependencyManagement.global_instance().for_target(target)
+        if managed_jar_artifact_set:
+          hash_elements_for_target.append(('managed_jar_artifact_set_id',
+                                           str(managed_jar_artifact_set.id)))
 
-      hash_elements_for_target.append(target.payload.fingerprint())
-    elif isinstance(target, JvmTarget) and target.payload.excludes:
-      hash_elements_for_target.append(target.payload.fingerprint(field_keys=('excludes',)))
-    else:
-      pass
+        hash_elements_for_target.append(('jar_library_fingerprint', target.payload.fingerprint()))
+      elif isinstance(target, JvmTarget) and target.payload.excludes:
+        hash_elements_for_target.append(('jvm_target_fingerprint',
+                                         target.payload.fingerprint(field_keys=('excludes',))))
+      else:
+        pass
 
-    if not hash_elements_for_target:
-      return None
+      if not hash_elements_for_target:
+        return None
 
-    hasher = self._build_hasher(target)
+      hasher = self._build_hasher(target)
 
-    for conf in self._confs:
-      hasher.update(conf)
+      for i, conf in enumerate(self._confs):
+        hasher.update(conf, name='conf_{}'.format(i))
 
-    for element in hash_elements_for_target:
-      hasher.update(element)
+      for name, element in hash_elements_for_target:
+        hasher.update(element, name=name)
 
-    return hasher.hexdigest()
+      return hasher.hexdigest()
 
   def __hash__(self):
     return hash((type(self), '-'.join(self._confs)))
