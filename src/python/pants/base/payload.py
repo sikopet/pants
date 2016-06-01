@@ -117,8 +117,8 @@ class Payload(object):
         fp = field.fingerprint()
         if fp is not None:
           empty_hash = False
-          hasher.update(sha1(key).hexdigest())
-          hasher.update(fp)
+          hasher.update(sha1(key).hexdigest(), name='{}_name'.format(key))
+          hasher.update(fp, name='{}_value'.format(key))
     if empty_hash:
       return None
     else:

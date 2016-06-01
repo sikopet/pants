@@ -24,7 +24,7 @@ class FingerprintLog(object):
     """A hasher wrapper that logs the hashing process."""
 
     def __init__(self, log, hasher):
-      self._log = log
+      self._logger = log
       self._hasher = hasher
       self._index = 0
 
@@ -33,7 +33,7 @@ class FingerprintLog(object):
         name = str(self._index)
         self._index += 1
       self._hasher.update(value)
-      self._log(name, value)
+      self._logger.log(name, value)
 
     def hexdigest(self):
       return self._hasher.hexdigest()
@@ -58,7 +58,7 @@ class FingerprintLog(object):
 
   @classmethod
   def in_subscope(cls, scope):
-    return cls.in_scope(cls.current_instance().subscope(scope))
+    return cls.in_scope(cls.current_instance().subscope(scope).scope)
 
   @classmethod
   @contextmanager
@@ -66,13 +66,14 @@ class FingerprintLog(object):
     try:
       current_scope = cls.__current_scope
       cls.__current_scope = scope
-      yield
+      yield cls.current_instance()
     finally:
       cls.__current_scope = current_scope
 
   def __init__(self, scope=''):
-    self._fields = {}
+    self._fields = []
     self._scope = scope
+    self._hasher = None
 
   @property
   def scope(self):
@@ -81,15 +82,20 @@ class FingerprintLog(object):
   def subscope(self, scope):
     if not scope:
       raise ValueError('Subscope cannot be empty (got "{}").'.format(scope))
-    return FingerprintLog.for_scope('.'.join(self._scope, scope) if self._scope else scope)
+    return FingerprintLog.for_scope('/'.join([self._scope, scope]) if self._scope else scope)
 
   def log(self, key, value):
-    self._fields[key] = value
+    self._fields.append((key, value))
     logger.info('[{}] {} = {}'.format(self.scope, key, value))
 
-  def hasher(self, hasher=None):
-    return FingerprintLog.LoggedHasher(self, hasher or sha1())
+  def hasher(self):
+    if self._hasher is None:
+      self._hasher = FingerprintLog.LoggedHasher(self, sha1())
+    return self._hasher
 
 
-def logged_hasher():
-  return FingerprintLog.current_instance().hasher()
+def logged_hasher(subscope=None):
+  instance = FingerprintLog.current_instance()
+  if subscope:
+    instance = instance.subscope(subscope)
+  return instance.hasher()
