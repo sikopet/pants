@@ -5,8 +5,8 @@
 from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
                         unicode_literals, with_statement)
 
-import json
 import logging
+import os
 from contextlib import contextmanager
 from hashlib import sha1
 
@@ -41,6 +41,7 @@ class FingerprintLog(object):
 
   __current_scope = None
   __logs_by_scope = {}
+  __logfile_path = None
 
   @classmethod
   def export_json(cls):
@@ -93,7 +94,15 @@ class FingerprintLog(object):
   def log(self, key, value):
     self._fields.append((key, value))
     logger.info('[{}] {} = {}'.format(self.scope, key, value))
-    with open('/Users/gmalmquist/Desktop/Logs/fingerprint_log.json', 'w') as f: # XXX
+    # XXX THIS IS A HACK
+    # This is a terrible, terrible hack and should *never* be used in a production version of pants!
+    # I'm just commiting this to debug stuff.
+    if FingerprintLog.__logfile_path is None:
+      FingerprintLog.__logfile_path = os.path.abspath('dist/fingerprinting-report.txt')
+    path = FingerprintLog.__logfile_path
+    if not os.path.exists(os.path.dirname(path)):
+      os.makedirs(os.path.dirname(path))
+    with open(path, 'w') as f:
       f.write('\n'.join(sorted(
         '{}\t{}\t{}'.format(s, k, v)
         for s, x in FingerprintLog.__logs_by_scope.items() for k, v, in x._fields
