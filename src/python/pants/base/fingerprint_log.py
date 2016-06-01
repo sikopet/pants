@@ -94,12 +94,16 @@ class FingerprintLog(object):
     self._fields.append((key, value))
     logger.info('[{}] {} = {}'.format(self.scope, key, value))
     with open('/Users/gmalmquist/Desktop/Logs/fingerprint_log.json', 'w') as f: # XXX
-      f.write(json.dumps(
-        FingerprintLog.export_json(),
-        indent=4,
-        separators=(',', ': '),
-        sort_keys=True,
-      ))
+      f.write('\n'.join(sorted(
+        '{}\t{}\t{}'.format(s, k, v)
+        for s, x in FingerprintLog.__logs_by_scope.items() for k, v, in x._fields
+      )))
+      # f.write(json.dumps(
+      #   FingerprintLog.export_json(),
+      #   indent=4,
+      #   separators=(',', ': '),
+      #   sort_keys=True,
+      # ))
 
   def hasher(self):
     if self._hasher is None:
