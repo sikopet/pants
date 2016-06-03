@@ -55,8 +55,11 @@ class ResolvedJarAwareTaskIdentityFingerprintStrategy(TaskIdentityFingerprintStr
       # against a binary incompatible version resolved for a previous compile.
       classpath_entries = self._classpath_products.get_artifact_classpath_entries_for_targets(
         [target])
+      if classpath_entries and len(classpath_entries) > 1:
+        hasher.log(target.address.spec, 'classpath_entries',
+                   *(e.coordinate for _, e in classpath_entries))
       for _, entry in classpath_entries:
-        hasher.update(str(entry.coordinate))
+        hasher.update(str(entry.coordinate), name=entry.coordinate)
     return hasher.hexdigest()
 
   def __hash__(self):

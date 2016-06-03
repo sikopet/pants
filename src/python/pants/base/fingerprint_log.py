@@ -36,6 +36,9 @@ class FingerprintLog(object):
       self._hasher.update(value)
       self._logger.log(name, value)
 
+    def log(self, key, *message):
+      self._logger.log(str(key), ' '.join(map(str, message)))
+
     def hexdigest(self):
       return self._hasher.hexdigest()
 
