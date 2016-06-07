@@ -5,6 +5,7 @@
 from __future__ import (absolute_import, division, generators, nested_scopes, print_function,
                         unicode_literals, with_statement)
 
+import json
 import os
 from textwrap import dedent
 
@@ -30,17 +31,17 @@ class CheckstyleIntegrationTest(PantsRunIntegrationTest):
     with self.temporary_workdir() as workdir:
       with temporary_dir() as tmp:
         configs = [
-            dedent("""
+          dedent("""
               <module name="TreeWalker">
                 <property name="tabWidth" value="2"/>
               </module>"""),
-            dedent("""
+          dedent("""
               <module name="TreeWalker">
                 <module name="LineLength">
                   <property name="max" value="100"/>
                 </module>
               </module>""")
-          ]
+        ]
 
         for config in configs:
           # Ensure that even though the config files have the same name, their
@@ -48,12 +49,129 @@ class CheckstyleIntegrationTest(PantsRunIntegrationTest):
           config_file = os.path.join(tmp, 'config.xml')
           self._create_config_file(config_file, config)
           args = [
-              'clean-all',
-              'compile.checkstyle',
-              cache_args,
-              'examples/src/java/org/pantsbuild/example/hello/simple',
-              '--compile-checkstyle-configuration={}'.format(config_file)
-            ]
+            'clean-all',
+            'compile.checkstyle',
+            cache_args,
+            'examples/src/java/org/pantsbuild/example/hello/simple',
+            '--compile-checkstyle-configuration={}'.format(config_file)
+          ]
+          pants_run = self.run_pants_with_workdir(args, workdir)
+          self.assert_success(pants_run)
+
+  @ensure_cached(expected_num_artifacts=1)
+  def test_config_name_does_not_invalidates_targets(self, cache_args):
+    with self.temporary_workdir() as workdir:
+      with temporary_dir() as tmp:
+        config_names = ['one.xml', 'two.xml']
+        config = dedent("""
+          <module name="TreeWalker">
+            <property name="tabWidth" value="2"/>
+          </module>""")
+
+        for config_name in config_names:
+          # Ensure that even though the config files have the same name, their
+          # contents will invalidate the targets.
+          config_file = os.path.join(tmp, config_name)
+          self._create_config_file(config_file, config)
+          args = [
+            'compile.checkstyle',
+            cache_args,
+            'examples/src/java/org/pantsbuild/example/hello/simple',
+            '--compile-checkstyle-configuration={}'.format(config_file)
+          ]
+          pants_run = self.run_pants_with_workdir(args, workdir)
+          self.assert_success(pants_run)
+
+  @ensure_cached(expected_num_artifacts=1)
+  def test_properties_file_names_does_not_invalidates_targets(self, cache_args):
+    with self.temporary_workdir() as workdir:
+      with temporary_dir() as tmp:
+        suppression_names = ['one-supress.xml', 'two-supress.xml']
+        suppression_data = dedent("""
+          <?xml version="1.0"?>
+          <!DOCTYPE suppressions PUBLIC
+              "-//Puppy Crawl//DTD Suppressions 1.1//EN"
+              "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+
+          <suppressions>
+            <suppress files=".*/bad-files/.*\.java" checks=".*"/>
+          </suppressions>
+          """).strip()
+
+        for suppression_name in suppression_names:
+          suppression_file = os.path.join(tmp, suppression_name)
+          self._create_config_file(suppression_file, suppression_data)
+          properties = {
+            'checkstyle.suppression.files': suppression_file,
+          }
+          args = [
+            'compile.checkstyle',
+            cache_args,
+            'examples/src/java/org/pantsbuild/example/hello/simple',
+            "--compile-checkstyle-properties={}".format(json.dumps(properties)),
+          ]
+          pants_run = self.run_pants_with_workdir(args, workdir)
+          self.assert_success(pants_run)
+
+  @ensure_cached(expected_num_artifacts=2)
+  def test_properties_file_contents_invalidates_targets(self, cache_args):
+    with self.temporary_workdir() as workdir:
+      with temporary_dir() as tmp:
+        suppression_files = [
+          dedent("""
+            <?xml version="1.0"?>
+            <!DOCTYPE suppressions PUBLIC
+                "-//Puppy Crawl//DTD Suppressions 1.1//EN"
+                "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+
+            <suppressions>
+              <suppress files=".*/bad-files/.*\.java" checks=".*"/>
+            </suppressions>
+          """).strip(),
+          dedent("""
+            <?xml version="1.0"?>
+            <!DOCTYPE suppressions PUBLIC
+                "-//Puppy Crawl//DTD Suppressions 1.1//EN"
+                "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+
+            <suppressions>
+              <suppress files=".*/bad-files/.*\.java" checks=".*"/>
+              <suppress files=".*/really-bad-files/.*\.java" checks=".*"/>
+            </suppressions>
+          """).strip(),
+        ]
+
+        for suppressions in suppression_files:
+          suppression_file = os.path.join(tmp, 'suppressions.xml')
+          self._create_config_file(suppression_file, suppressions)
+          properties = {
+            'checkstyle.suppression.files': suppression_file,
+          }
+          args = [
+            'compile.checkstyle',
+            cache_args,
+            'examples/src/java/org/pantsbuild/example/hello/simple',
+            "--compile-checkstyle-properties={}".format(json.dumps(properties)),
+          ]
+          pants_run = self.run_pants_with_workdir(args, workdir)
+          self.assert_success(pants_run)
+
+  @ensure_cached(expected_num_artifacts=2)
+  def test_properties_nonfile_values_invalidates_targets(self, cache_args):
+    with self.temporary_workdir() as workdir:
+      with temporary_dir():
+        values = ['this-is-not-a-file', '37']
+
+        for value in values:
+          properties = {
+            'my.value': value,
+          }
+          args = [
+            'compile.checkstyle',
+            cache_args,
+            'examples/src/java/org/pantsbuild/example/hello/simple',
+            "--compile-checkstyle-properties={}".format(json.dumps(properties)),
+          ]
           pants_run = self.run_pants_with_workdir(args, workdir)
           self.assert_success(pants_run)
 

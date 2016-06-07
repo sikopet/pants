@@ -68,6 +68,25 @@ def file_option(s):
   return s
 
 
+def file_contents_option(s):
+  """Same type as 'file_option', but only fingerprints the file contents, not the path.
+
+  :API: public
+  """
+  return file_option(s)
+
+
+def dict_with_files_option(s):
+  """Same as 'dict', but fingerprints the file contents of any values which are file paths.
+
+  For any value which matches the path of a file on disk, the file path is not fingerprinted -- only
+  its contents.
+
+  :API: public
+  """
+  return _convert(s, (dict,))
+
+
 def _convert(val, acceptable_types):
   """Ensure that val is one of the acceptable types, converting it if needed.
 

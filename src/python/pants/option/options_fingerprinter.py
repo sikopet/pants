@@ -6,9 +6,11 @@ from __future__ import (absolute_import, division, generators, nested_scopes, pr
                         unicode_literals, with_statement)
 
 import json
+import os
 from hashlib import sha1
 
-from pants.option.custom_types import file_option, target_option
+from pants.option.custom_types import (dict_with_files_option, file_contents_option, file_option,
+                                       target_option)
 
 
 def stable_json_dumps(obj):
@@ -47,6 +49,10 @@ class OptionsFingerprinter(object):
       return self._fingerprint_target_specs(option_val)
     elif option_type == file_option:
       return self._fingerprint_files(option_val)
+    elif option_type == file_contents_option:
+      return self._fingerprint_files(option_val, contents_only=True)
+    elif option_type == dict_with_files_option:
+      return self._fingerprint_dict_with_files(option_val)
     else:
       return self._fingerprint_primitives(option_val)
 
@@ -61,15 +67,33 @@ class OptionsFingerprinter(object):
           hasher.update(h)
     return hasher.hexdigest()
 
-  def _fingerprint_files(self, filepaths):
+  def _fingerprint_files(self, filepaths, contents_only=False):
     """Returns a fingerprint of the given filepaths and their contents."""
     hasher = sha1()
     # Note that we don't sort the filepaths, as their order may have meaning.
     for filepath in filepaths:
-      hasher.update(filepath)
+      if not contents_only:
+        hasher.update(filepath)
       with open(filepath, 'rb') as f:
         hasher.update(f.read())
     return hasher.hexdigest()
 
   def _fingerprint_primitives(self, val):
     return stable_json_sha1(val)
+
+  def _fingerprint_dict_with_files(self, option_val):
+    """Returns a fingerprint of the given dictionary containing file paths.
+
+    Any value which is a file path which exists on disk will be fingerprinted by that file's
+    contents rather than by its path.
+    """
+    if isinstance(option_val, (list, tuple)):
+      option_val = option_val[0]
+    hasher = sha1()
+    for key, value in sorted(option_val.items()):
+      if value and os.path.exists(str(value)):
+        with open(value, 'r') as f:
+          hasher.update('{}={}'.format(key, f.read()))
+      else:
+        hasher.update('{}={}'.format(key, value))
+    return hasher.hexdigest()
