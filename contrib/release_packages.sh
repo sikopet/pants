@@ -74,16 +74,16 @@ function pkg_node_install_test() {
       test.node contrib/node/examples::
 }
 
-PKG_SCALAJS=(
-  "pantsbuild.pants.contrib.scalajs"
-  "//contrib/scalajs/src/python/pants/contrib/scalajs:plugin"
-  "pkg_scalajs_install_test"
-)
-function pkg_scalajs_install_test() {
-  execute_packaged_pants_with_internal_backends \
-      --plugins="['pantsbuild.pants.contrib.scalajs==$(local_version)']" \
-      test contrib/scalajs::
-}
+#PKG_SCALAJS=(
+#  "pantsbuild.pants.contrib.scalajs"
+#  "//contrib/scalajs/src/python/pants/contrib/scalajs:plugin"
+#  "pkg_scalajs_install_test"
+#)
+#function pkg_scalajs_install_test() {
+#  execute_packaged_pants_with_internal_backends \
+#      --plugins="['pantsbuild.pants.contrib.scalajs==$(local_version)']" \
+#      test contrib/scalajs::
+#}
 
 PKG_PYTHON_CHECKS=(
   "pantsbuild.pants.contrib.python.checks"
@@ -118,6 +118,6 @@ CONTRIB_PACKAGES=(
   PKG_GO
   PKG_NODE
   PKG_PYTHON_CHECKS
-  PKG_SCALAJS
+  #PKG_SCALAJS
   PKG_FINDBUGS
 )
