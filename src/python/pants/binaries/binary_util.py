@@ -22,17 +22,18 @@ from pants.util.osutil import get_os_id
 
 
 _DEFAULT_PATH_BY_ID = {
-  ('linux', 'x86_64'): ['linux', 'x86_64'],
-  ('linux', 'amd64'): ['linux', 'x86_64'],
-  ('linux', 'i386'): ['linux', 'i386'],
-  ('linux', 'i686'): ['linux', 'i386'],
-  ('darwin', '9'): ['mac', '10.5'],
-  ('darwin', '10'): ['mac', '10.6'],
-  ('darwin', '11'): ['mac', '10.7'],
-  ('darwin', '12'): ['mac', '10.8'],
-  ('darwin', '13'): ['mac', '10.9'],
-  ('darwin', '14'): ['mac', '10.10'],
-  ('darwin', '15'): ['mac', '10.11'],
+  ('linux', 'x86_64'): ('linux', 'x86_64'),
+  ('linux', 'amd64'): ('linux', 'x86_64'),
+  ('linux', 'i386'): ('linux', 'i386'),
+  ('linux', 'i686'): ('linux', 'i386'),
+  ('darwin', '9'): ('mac', '10.5'),
+  ('darwin', '10'): ('mac', '10.6'),
+  ('darwin', '11'): ('mac', '10.7'),
+  ('darwin', '12'): ('mac', '10.8'),
+  ('darwin', '13'): ('mac', '10.9'),
+  ('darwin', '14'): ('mac', '10.10'),
+  ('darwin', '15'): ('mac', '10.11'),
+  ('darwin', '16'): ('mac', '10.12'),
 }
 
 
