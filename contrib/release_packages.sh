@@ -112,9 +112,9 @@ function pkg_findbugs_install_test() {
 
 # Once individual (new) package is declared above, insert it into the array below)
 CONTRIB_PACKAGES=(
-  PKG_ANDROID
-  PKG_SCROOGE
-  PKG_BUILDGEN
+  #PKG_ANDROID
+  #PKG_SCROOGE
+  #PKG_BUILDGEN
   PKG_GO
   PKG_NODE
   PKG_PYTHON_CHECKS
